@@ -77,7 +77,7 @@ main(){
 
     echo -e "\\nRestarting..."
     echo "Pi will be available via:"
-    echo "  ssh pi@$HOSTNAME.local"
+    echo -e "  ssh pi@$HOSTNAME.local\\n"
     sudo shutdown -r now
 }
 
