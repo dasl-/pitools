@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+set -eou pipefail
+
+OLD_PASSWORD='raspberry'
+NEW_PASSWORD=null
+PATH_TO_SSH_KEY='/home/pi/.ssh/id_ed25519_standard_raspberry_pi'
+HOSTNAME=null
+
+usage(){
+    echo "Usage: $(basename "${0}") -n <NEW_PASSWORD> -h <HOSTNAME> [-o <OLD_PASSWORD>] [-s <PATH_TO_SSH_KEY>]"
+    echo "Run this from the raspberry pi."
+    echo "  -n NEW_PASSWORD    : Set the new password. Required."
+    echo "  -h HOSTNAME        : Set the hostname. Required."
+    echo "  -o OLD_PASSWORD    : defaults to: $OLD_PASSWORD"
+    echo "  -s PATH_TO_SSH_KEY : defaults to: $PATH_TO_SSH_KEY"
+    exit 1
+}
+
+while getopts ":n:h:o:s:" opt; do
+    case ${opt} in
+        n)
+            if [ -z "$OPTARG" ]; then
+                echo "The -n arg is required."
+                usage
+            fi
+            NEW_PASSWORD=${OPTARG}
+            ;;
+        h)
+            if [[ "$OPTARG" =~ ^[a-z]([a-z0-9-]*[a-z0-9])?$ ]]; then
+                HOSTNAME=${OPTARG}
+            else
+                echo "Invalid hostname."
+                usage
+            fi
+            ;;
+        o)
+            OLD_PASSWORD=${OPTARG}
+            ;;
+        s)
+            PATH_TO_SSH_KEY=${OPTARG}
+            ;;
+        *)
+            usage
+            ;;
+      esac
+done
+
+echo -e "$OLD_PASSWORD\n$NEW_PASSWORD\n$NEW_PASSWORD" | passwd # myrealpoop2
+eval "$(ssh-agent -s)"
+ssh-add "$PATH_TO_SSH_KEY"
+sudo apt-get update
+sudo apt-get -y install git
+sudo apt-get -y dist-upgrade
+
+# Set the hostname. Allows sshing and hitting the pifi webpage via "<hostname>.local"
+# See: https://www.raspberrypi.org/documentation/remote-access/ip-address.md "Resolving raspberrypi.local with mDNS"
+if [[ $(cat /etc/hostname) != pifi ]]; then
+    echo "$HOSTNAME" | sudo tee /etc/hostname >/dev/null 2>&1
+    sudo sed -i -E 's/(127\.0\.1\.1\s+)[^ ]+/\1'"$HOSTNAME"'/g' /etc/hosts
+fi

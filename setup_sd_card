@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import subprocess
+import pathlib
+
+BASH_EXECUTABLE = '/bin/bash'
+
+def parseArgs():
+    parser = argparse.ArgumentParser(description="""
+        setup new sd card for raspberry pi. Images disk, sets up wifi, sets up ssh. Run from laptop.
+        """)
+    parser.add_argument('--disk-num', dest='disk_num', action='store', required = True,
+        help='Disk number via `diskutil list`. This disk will be overwritten, so don\'t get this wrong.')
+    parser.add_argument('--disk-image', dest='disk_image', action='store', required = True,
+        help='Path to disk image. Download Raspberry Pi OS Lite image from https://www.raspberrypi.org/software/operating-systems/')
+    parser.add_argument('--device-path', dest='device_path', action='store', default='/Volumes/boot',
+        help='Mounted volume path after SD card has been imaged. Default: %(default)s')
+    parser.add_argument('--wifi-network-name', dest='wifi_network_name', action='store', required = True,
+        help='Name of the network to join')
+    parser.add_argument('--wifi-password', dest='wifi_password', action='store', required = True,
+        help='Password of the network to join')
+    parser.add_argument('--wifi-country-code', dest='wifi_country_code', action='store', default='US',
+        help='Your ISO-3166-1 two-letter country code. Default: %(default)s. See: ' +
+        'https://www.iso.org/obp/ui/#search')
+
+    args = parser.parse_args()
+    args.device_path = args.device_path.rstrip('/')
+    return args
+
+def imageSdCard():
+    command(f'diskutil unmountDisk /dev/disk{args.disk_num}')
+    print("Writing disk image, may take up to 15 minutes...")
+    command(f'sudo dd bs=1m if={args.disk_image} of=/dev/rdisk{args.disk_num}; sync')
+
+def setupWifi():
+    my_dir = pathlib.Path(__file__).parent.absolute()
+    command(f'sudo {my_dir}/wifi_config --wifi-network-name {args.wifi_network_name} ' +
+        '--wifi-password {args.wifi_password} --wifi-country-code {args.wifi_country_code} --device-path {args.device_path}')
+
+def setupSsh():
+    command(f'sudo touch {args.device_path}/ssh')
+
+def finish():
+    command(f'sudo diskutil eject /dev/rdisk{args.disk_num}')
+    print("""
+pi should be accessible via:
+
+ssh pi@raspberrypi.local
+
+password: raspberry
+""")
+
+def command(command):
+    return (subprocess
+        .check_output(command, shell = True, executable = BASH_EXECUTABLE)
+        .decode("utf-8"))
+
+
+if os.getuid() != 0:
+    print("This script must be run as sudo")
+    exit(1)
+
+args = parseArgs()
+imageSdCard()
+setupWifi()
+setupSsh()
+finish()

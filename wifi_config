@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+
+def parseArgs():
+    parser = argparse.ArgumentParser(description='Configure /boot/wpa_supplicant.conf ' +
+        'with a given network name and password such that the pifi will automatically ' +
+        'attempt to join that network upon its next reboot. Can be run from laptop or ' +
+        'pi. If run from laptop, must specify --device-path. See: ' +
+        'https://raspberrypi.stackexchange.com/a/57023')
+    parser.add_argument('--wifi-network-name', dest='wifi_network_name', action='store', required = True,
+        help='Name of the network to join')
+    parser.add_argument('--wifi-password', dest='wifi_password', action='store', required = True,
+        help='Password of the network to join')
+    parser.add_argument('--wifi-country-code', dest='wifi_country_code', action='store', default='US',
+        help='Your ISO-3166-1 two-letter country code. Default: %(default)s. See: ' +
+        'https://www.iso.org/obp/ui/#search')
+    parser.add_argument('--device-path', dest='device_path', action='store', default='/boot',
+        help='Mounted volume path after SD card has been imaged. Only applicable / useful if you are running ' +
+        'this script on a laptop / desktop to image the SD card for the first time. If running this script on a ' +
+        'raspberry pi, do not use this argument.')
+
+    args = parser.parse_args()
+    args.device_path = args.device_path.rstrip('/')
+    return args
+
+def setupWifi():
+    f = None
+    try:
+        f = open(f"{args.device_path}/wpa_supplicant.conf", "w")
+    except PermissionError:
+        print("This script must be run as sudo")
+        exit(1)
+
+    f.write(f"""country={args.wifi_country_code}
+    ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+    update_config=1
+    network={{
+      ssid="{args.wifi_network_name}"
+      psk="{args.wifi_password}"
+      key_mgmt=WPA-PSK
+    }}""")
+    f.close()
+
+
+if os.getuid() != 0:
+    print("This script must be run as sudo")
+    exit(1)
+
+args = parseArgs()
+setupWifi()
