@@ -53,25 +53,32 @@ main(){
     fi
 
     # change pw
+    echo "\nChanging password to: $NEW_PASSWORD"
     echo -e "$OLD_PASSWORD\n$NEW_PASSWORD\n$NEW_PASSWORD" | passwd
 
     # setup ssh keys
+    echo "\nSetting up ssh keys..."
     eval "$(ssh-agent -s)"
     ssh-add "$PATH_TO_SSH_KEY"
 
     # update
+    echo "\nUpdating and installing packages..."
     sudo apt-get update
     sudo apt-get -y install git
     sudo apt-get -y dist-upgrade
 
     # Set the hostname. Allows sshing and hitting the pifi webpage via "<hostname>.local"
     # See: https://www.raspberrypi.org/documentation/remote-access/ip-address.md "Resolving raspberrypi.local with mDNS"
+    echo "\nSetting hostname to: $HOSTNAME"
     if [[ $(cat /etc/hostname) != pifi ]]; then
         echo "$HOSTNAME" | sudo tee /etc/hostname >/dev/null 2>&1
         sudo sed -i -E 's/(127\.0\.1\.1\s+)[^ ]+/\1'"$HOSTNAME"'/g' /etc/hosts
     fi
 
-    # TODO: restart
+    echo "\nRestarting..."
+    echo "Pi will be available via:"
+    echo "  ssh pi@$HOSTNAME.local"
+    sudo shutdown -r now
 
 }
 
