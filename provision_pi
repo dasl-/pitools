@@ -9,17 +9,17 @@ HOSTNAME=null
 ENABLE_SPI=false
 
 usage(){
-    echo "Usage: $(basename "${0}") -n <NEW_PASSWORD> -h <HOSTNAME> [-o <OLD_PASSWORD>] [-s <PATH_TO_SSH_KEY>] [-p]"
+    echo "Usage: $(basename "${0}") -n <NEW_PASSWORD> -h <HOSTNAME> [-o <OLD_PASSWORD>] [-i <PATH_TO_SSH_KEY>] [-s]"
     echo "Run this from the raspberry pi."
     echo "  -n NEW_PASSWORD    : Set the new password. Required."
     echo "  -h HOSTNAME        : Set the hostname. Required."
     echo "  -o OLD_PASSWORD    : defaults to: $OLD_PASSWORD"
-    echo "  -s PATH_TO_SSH_KEY : defaults to: $PATH_TO_SSH_KEY"
-    echo "  -p                 : Enable SPI"
+    echo "  -i PATH_TO_SSH_KEY : defaults to: $PATH_TO_SSH_KEY"
+    echo "  -s                 : Enable SPI"
     exit 1
 }
 
-while getopts ":n:h:o:s:p" opt; do
+while getopts ":n:h:o:i:s" opt; do
     case ${opt} in
         n)
             if [ -z "$OPTARG" ]; then
@@ -39,10 +39,10 @@ while getopts ":n:h:o:s:p" opt; do
         o)
             OLD_PASSWORD=${OPTARG}
             ;;
-        s)
+        i)
             PATH_TO_SSH_KEY=${OPTARG}
             ;;
-        p)
+        s)
             ENABLE_SPI=true
             ;;
         *)
