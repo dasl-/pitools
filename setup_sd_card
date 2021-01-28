@@ -29,11 +29,13 @@ def parseArgs():
     args.device_path = args.device_path.rstrip('/')
     return args
 
+# https://www.raspberrypi.org/documentation/installation/installing-images/mac.md
 def imageSdCard():
     command(f'diskutil unmountDisk /dev/disk{args.disk_num}')
     print("Writing disk image, may take up to 15 minutes...")
     command(f'sudo dd bs=1m if={args.disk_image} of=/dev/rdisk{args.disk_num}; sync')
 
+# https://raspberrypi.stackexchange.com/a/57023
 def setupWifi():
     my_dir = pathlib.Path(__file__).parent.absolute()
     command(f'sudo {my_dir}/wifi_config --wifi-network-name {args.wifi_network_name} ' +

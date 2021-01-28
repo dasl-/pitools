@@ -71,7 +71,9 @@ changePassword(){
 }
 
 setupSshKey(){
-    echo -e "\\nSetting up ssh key..."
+    echo -e "\\nSetting up ssh key... If you still need to add this key to your github account, see: "
+    echo "https://docs.github.com/en/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account"
+    echo "https://github.com/settings/keys"
     eval "$(ssh-agent -s)"
     ssh-add "$PATH_TO_SSH_KEY"
 }

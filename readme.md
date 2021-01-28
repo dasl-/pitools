@@ -8,3 +8,6 @@
 1. from laptop: `ssh pi@raspberrypi.local` (default password: `raspberry`)
 1. from pi: `curl https://raw.githubusercontent.com/dasl-/pitools/main/provision_pi > provision_pi && chmod a+x provision_pi`
 1. from pi: `./provision_pi -n <new_password> -h <hostname>`
+
+## other useful commands for setting up
+1. find its IP: `sudo arp-scan --interface=en0 --localnet` or `sudo nmap -sS -p 22 192.168.1.0/24`
