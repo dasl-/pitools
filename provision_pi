@@ -36,60 +36,69 @@ while getopts ":n:h:o:i:s" opt; do
                 usage
             fi
             ;;
-        o)
-            OLD_PASSWORD=${OPTARG}
-            ;;
-        i)
-            PATH_TO_SSH_KEY=${OPTARG}
-            ;;
-        s)
-            ENABLE_SPI=true
-            ;;
-        *)
-            usage
-            ;;
+        o) OLD_PASSWORD=${OPTARG} ;;
+        i) PATH_TO_SSH_KEY=${OPTARG} ;;
+        s) ENABLE_SPI=true ;;
+        *) usage ;;
       esac
 done
 
 main(){
-    if [[ ${NEW_PASSWORD} == "null" || ${HOSTNAME} == "null" ]]; then
-        echo "Must set -n and / or -h options."
-        usage
-    fi
+    validateOpts
 
-    # change pw
-    echo -e "\\nChanging password to: $NEW_PASSWORD"
-    echo -e "$OLD_PASSWORD\n$NEW_PASSWORD\n$NEW_PASSWORD" | passwd
-
-    # setup ssh keys
-    echo -e "\\nSetting up ssh keys..."
-    eval "$(ssh-agent -s)"
-    ssh-add "$PATH_TO_SSH_KEY"
-
-    # update
-    echo -e "\\nUpdating and installing packages..."
-    sudo apt-get update
-    sudo apt-get -y install git vim
-    sudo apt-get -y dist-upgrade
-
-    # Set the hostname. Allows sshing and hitting the pifi webpage via "<hostname>.local"
-    # See: https://www.raspberrypi.org/documentation/remote-access/ip-address.md "Resolving raspberrypi.local with mDNS"
-    echo -e "\\nSetting hostname to: $HOSTNAME"
-    if [[ $(cat /etc/hostname) != pifi ]]; then
-        echo "$HOSTNAME" | sudo tee /etc/hostname >/dev/null 2>&1
-        sudo sed -i -E 's/(127\.0\.1\.1\s+)[^ ]+/\1'"$HOSTNAME"'/g' /etc/hosts
-    fi
-
-    if [[ ${ENABLE_SPI} == "true" ]]; then
-        echo -e "\\nEnabling SPI..."
-        # https://raspberrypi.stackexchange.com/a/96679
-        sudo raspi-config nonint do_spi 0
-    fi
+    changePassword
+    setupSshKey
+    updateAndInstallPackages
+    setHostname
+    maybeEnableSpi
 
     echo -e "\\nRestarting..."
     echo "Pi will be available via:"
     echo -e "  ssh pi@$HOSTNAME.local\\n"
     sudo shutdown -r now
+}
+
+validateOpts(){
+    if [[ ${NEW_PASSWORD} == "null" || ${HOSTNAME} == "null" ]]; then
+        echo "Must set -n and / or -h options."
+        usage
+    fi
+}
+
+changePassword(){
+    echo -e "\\nChanging password to: $NEW_PASSWORD"
+    echo -e "$OLD_PASSWORD\n$NEW_PASSWORD\n$NEW_PASSWORD" | passwd
+}
+
+setupSshKey(){
+    echo -e "\\nSetting up ssh key..."
+    eval "$(ssh-agent -s)"
+    ssh-add "$PATH_TO_SSH_KEY"
+}
+
+updateAndInstallPackages(){
+    echo -e "\\nUpdating and installing packages..."
+    sudo apt-get update
+    sudo apt-get -y install git vim
+    sudo apt-get -y dist-upgrade
+}
+
+# Allows sshing and hitting the pifi webpage via "<hostname>.local"
+# See: https://www.raspberrypi.org/documentation/remote-access/ip-address.md "Resolving raspberrypi.local with mDNS"
+setHostname(){
+    echo -e "\\nSetting hostname to: $HOSTNAME"
+    if [[ $(cat /etc/hostname) != pifi ]]; then
+        echo "$HOSTNAME" | sudo tee /etc/hostname >/dev/null 2>&1
+        sudo sed -i -E 's/(127\.0\.1\.1\s+)[^ ]+/\1'"$HOSTNAME"'/g' /etc/hosts
+    fi
+}
+
+maybeEnableSpi(){
+    if [[ ${ENABLE_SPI} == "true" ]]; then
+        echo -e "\\nEnabling SPI..."
+        # https://raspberrypi.stackexchange.com/a/96679
+        sudo raspi-config nonint do_spi 0
+    fi
 }
 
 main
