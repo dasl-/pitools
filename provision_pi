@@ -53,8 +53,10 @@ main(){
     echo -e "Pi will be available via:\\n"
     echo -e "  ssh pi@$HOSTNAME.local\\n"
 
-    sleep 1
-    sudo shutdown -r now
+    # redirect "sudo: unable to resolve host raspberrypi: Name or service not known" to /dev/null
+    # I think sudo has weirdness immediately after a hostname change. Hide this output to avoid
+    # someone thinking something didn't work (it's fine).
+    sudo shutdown -r now 2>/dev/null
 }
 
 validateOpts(){
