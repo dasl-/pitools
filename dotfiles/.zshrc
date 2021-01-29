@@ -83,6 +83,10 @@ PROMPT="%{$fg[green]%}%B[$HOST] %~ %% %b%{$reset_color%}"
 # http://stackoverflow.com/questions/927358/how-to-undo-the-last-git-commit
 alias git_undo_last_commit="git reset --soft 'HEAD^'"
 
+# in case you have a friend also using rmate, one of you can use a different port so you don't conflict:
+# https://github.com/aurora/rmate#set-up-editor
+alias subl="subl --port 52699"
+
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 # fzf

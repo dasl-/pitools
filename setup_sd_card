@@ -5,8 +5,6 @@ import os
 import subprocess
 import pathlib
 
-BASH_EXECUTABLE = '/bin/bash'
-
 def parseArgs():
     parser = argparse.ArgumentParser(description="""
         setup new sd card for raspberry pi. Images disk, sets up wifi, sets up ssh. Run from laptop.
@@ -56,7 +54,7 @@ password: raspberry
 
 def command(command):
     return (subprocess
-        .check_output(command, shell = True, executable = BASH_EXECUTABLE)
+        .check_output(command, shell = True, executable = '/usr/bin/env bash')
         .decode("utf-8"))
 
 

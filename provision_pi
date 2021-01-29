@@ -4,7 +4,7 @@ set -eou pipefail
 
 OLD_PASSWORD='raspberry'
 NEW_PASSWORD=null
-PATH_TO_SSH_KEY='/home/pi/.ssh/id_ed25519_standard_raspberry_pi'
+PATH_TO_SSH_KEY='/home/pi/.ssh/id_ed25519'
 HOSTNAME=null
 ENABLE_SPI=false
 
@@ -48,6 +48,8 @@ main(){
 
     setupSshKey
     updateAndInstallPackages
+    setupGit
+    installRmate
     changeAndSetupShell
     setHostname
     maybeEnableSpi
@@ -66,11 +68,6 @@ validateOpts(){
     fi
 }
 
-changePassword(){
-    echo -e "\\nChanging password to: $NEW_PASSWORD"
-    echo -e "$OLD_PASSWORD\n$NEW_PASSWORD\n$NEW_PASSWORD" | passwd
-}
-
 setupSshKey(){
     echo -e "\\nSetting up ssh key... If you still need to add this key to your github account, see: "
     echo "https://docs.github.com/en/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account"
@@ -84,6 +81,26 @@ updateAndInstallPackages(){
     sudo apt-get update
     sudo apt-get -y install fzf git locate vim zsh zsh-syntax-highlighting
     sudo apt-get -y dist-upgrade
+}
+
+# use diff-highlight as diff tool / pager
+setupGit(){
+    make -C /usr/share/doc/git/contrib/diff-highlight
+    git config --global core.pager '/usr/share/doc/git/contrib/diff-highlight/diff-highlight | less'
+}
+
+# allows `subl path_to_file.txt` to use sublime text to edit the file on the pi
+# By default we are using a non-standard port so that we don't conflict with a friend who may
+# be hacking on the same device at the same time also using rmate. We use 52699 instead of the
+# standard 52699.
+#
+# This requires:
+# 1) aliasing the `subl` command in ~/.zshrc to use our port
+# 2) setting up ssh port forwarding for our port in the computer we are sshing from
+# 3) configuring the rsub sublime plugin to use our port in its settings (package control -> list packages -> rsub)
+installRmate(){
+    sudo wget -O /usr/local/bin/subl https://raw.githubusercontent.com/aurora/rmate/master/rmate
+    sudo chmod a+x /usr/local/bin/subl
 }
 
 changeAndSetupShell(){
@@ -119,6 +136,11 @@ maybeEnableSpi(){
         # https://raspberrypi.stackexchange.com/a/96679
         sudo raspi-config nonint do_spi 0
     fi
+}
+
+changePassword(){
+    echo -e "\\nChanging password to: $NEW_PASSWORD"
+    echo -e "$OLD_PASSWORD\n$NEW_PASSWORD\n$NEW_PASSWORD" | passwd
 }
 
 main
