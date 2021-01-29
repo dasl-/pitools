@@ -44,6 +44,7 @@ main(){
     updateAndInstallPackages
     setupGit
     installRmate
+    clonePiTools
     changeAndSetupShell
     setHostname
     maybeEnableSpi
@@ -99,6 +100,14 @@ installRmate(){
     echo -e "\\nInstalling rmate..."
     sudo wget -O /usr/local/bin/subl https://raw.githubusercontent.com/aurora/rmate/master/rmate
     sudo chmod a+x /usr/local/bin/subl
+}
+
+# Useful for the wifi_config script
+clonePiTools(){
+    echo -e "\\nInstalling pitools..."
+    dev_dir="$HOME/development"
+    mkdir -p "$dev_dir"
+    git -C "$dev_dir" clone https://github.com/dasl-/pitools.git
 }
 
 changeAndSetupShell(){
