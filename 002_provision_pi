@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+
+set -eou pipefail
+
+SSH_KEY_TO_AUTHORIZE="$HOME/.ssh/id_ed25519.pub"
+SSH_KEY_TO_ADD="$HOME/standard_raspberry_pi_key/id_ed25519.pub"
+OLD_HOSTNAME="raspberrypi.local"
+NEW_HOSTNAME="$OLD_HOSTNAME"
+OLD_PASSWORD="raspberry"
+NEW_PASSWORD="$OLD_PASSWORD"
+ENABLE_SPI=false
+PRIV_SSH_KEY_FILE=null
+
+usage(){
+    echo "Usage: $(basename "${0}") [-i <SSH_KEY_TO_AUTHORIZE>] [-j <SSH_KEY_TO_ADD>] [-h <NEW_HOSTNAME>] [-g <OLD_HOSTNAME] [-p <NEW_PASSWORD] [-o <OLD_PASSWORD] [-s]"
+    echo "Run this from laptop."
+    echo "  -i SSH_KEY_TO_AUTHORIZE : path to ssh key to add to authorized_keys for passwordless login on raspberry pi"
+    echo "                            Defaults to: $SSH_KEY_TO_AUTHORIZE"
+    echo "  -j SSH_KEY_TO_ADD       : path to ssh key to copy to ~/.ssh on the raspberry pi. If you specify the public"
+    echo "                            key path, the corresponding private key will also be copied and vice versa."
+    echo "                            Defaults to: $SSH_KEY_TO_ADD"
+    echo "  -h NEW_HOSTNAME         : Change the raspberry pi's hostname. Defaults to $OLD_HOSTNAME."
+    echo "  -g OLD_HOSTNAME         : Defaults to $OLD_HOSTNAME"
+    echo "  -p NEW_PASSWORD         : Change the raspberry pi's password. Defaults to $OLD_PASSWORD"
+    echo "  -o OLD_PASSWORD         : Defaults to $OLD_PASSWORD"
+    echo "  -s                      : Enable SPI"
+
+    exit 1
+}
+
+while getopts ":i:j:" opt; do
+    case ${opt} in
+        i) SSH_KEY_TO_AUTHORIZE=${OPTARG} ;;
+        j) SSH_KEY_TO_ADD=${OPTARG} ;;
+        h)
+            if [[ "$OPTARG" =~ ^[a-z]([a-z0-9-]*[a-z0-9])?$ ]]; then
+                NEW_HOSTNAME=${OPTARG}
+            else
+                echo "Invalid hostname."
+                usage
+            fi
+            ;;
+        g) OLD_HOSTNAME=${OPTARG} ;;
+        p) NEW_PASSWORD=${OPTARG} ;;
+        o) OLD_PASSWORD=${OPTARG} ;;
+        s) ENABLE_SPI=true ;;
+        *) usage ;;
+      esac
+done
+
+main(){
+    validateOpts
+
+    setupSsh
+    provisionPi
+
+    echo -e "\\nDone provisioning raspberry pi!"
+}
+
+validateOpts(){
+    # n/a
+}
+
+setupSsh(){
+    echo -e "\\nAuthorizing passwordless ssh with $SSH_KEY_TO_AUTHORIZE..."
+    echo "When asked for a password, please enter the raspberry pi's password (probably: $OLD_PASSWORD )."
+    ssh-copy-id -i "$SSH_KEY_TO_AUTHORIZE" pi@"$RASPBERRY_PI_HOSTNAME"
+
+    if [[ ${SSH_KEY_TO_ADD} == *.pub ]]; then
+        PUB_SSH_KEY_TO_ADD="$SSH_KEY_TO_ADD"
+        PRIV_SSH_KEY_TO_ADD="${PUB_SSH_KEY_TO_ADD%.pub}"
+    else
+        PRIV_SSH_KEY_TO_ADD="$SSH_KEY_TO_ADD"
+        PUB_SSH_KEY_TO_ADD="$PRIV_SSH_KEY_TO_ADD".pub
+    fi
+    PRIV_SSH_KEY_FILE=$(basename PRIV_SSH_KEY_TO_ADD)
+
+    destination="pi@$RASPBERRY_PI_HOSTNAME:~/.ssh"
+    echo -e "\\nCopying $PUB_SSH_KEY_TO_ADD and $PRIV_SSH_KEY_TO_ADD to $destination..."
+    scp "$PUB_SSH_KEY_TO_ADD" "$PRIV_SSH_KEY_TO_ADD" $destination
+}
+
+provisionPi(){
+    echo -e "\\nProvisioning raspberry pi..."
+
+    provision_cmd="ssh pi@$OLD_HOSTNAME -- "
+    provision_cmd+="curl https://raw.githubusercontent.com/dasl-/pitools/main/provision_pi > provision_pi && "
+    provision_cmd+="chmod a+x provision_pi && "
+    provision_cmd+="./provision_pi -p $NEW_PASSWORD -h $NEW_HOSTNAME -o $OLD_PASSWORD -i /home/pi/.ssh/$PRIV_SSH_KEY_FILE "
+    if [[ ${ENABLE_SPI} == "true" ]]; then
+        provision_cmd+="-s "
+    fi
+    echo "Running: $provision_cmd"
+    eval $provision_cmd
+}
+
+main

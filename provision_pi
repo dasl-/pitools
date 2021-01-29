@@ -3,31 +3,25 @@
 set -eou pipefail
 
 OLD_PASSWORD='raspberry'
-NEW_PASSWORD=null
-PATH_TO_SSH_KEY='/home/pi/.ssh/id_ed25519'
-HOSTNAME=null
+NEW_PASSWORD="$OLD_PASSWORD"
+PATH_TO_SSH_KEY="$HOME/.ssh/id_ed25519"
+HOSTNAME="raspberrypi.local"
 ENABLE_SPI=false
 
 usage(){
-    echo "Usage: $(basename "${0}") -n <NEW_PASSWORD> -h <HOSTNAME> [-o <OLD_PASSWORD>] [-i <PATH_TO_SSH_KEY>] [-s]"
+    echo "Usage: $(basename "${0}") [-n <NEW_PASSWORD>] [-h <HOSTNAME>] [-o <OLD_PASSWORD>] [-i <PATH_TO_SSH_KEY>] [-s]"
     echo "Run this from the raspberry pi."
-    echo "  -n NEW_PASSWORD    : Set the new password. Required."
-    echo "  -h HOSTNAME        : Set the hostname. Required."
+    echo "  -p NEW_PASSWORD    : Set the new password. Defaults to $OLD_PASSWORD"
+    echo "  -h HOSTNAME        : Set the hostname. Defaults to $HOSTNAME."
     echo "  -o OLD_PASSWORD    : defaults to: $OLD_PASSWORD"
     echo "  -i PATH_TO_SSH_KEY : defaults to: $PATH_TO_SSH_KEY"
     echo "  -s                 : Enable SPI"
     exit 1
 }
 
-while getopts ":n:h:o:i:s" opt; do
+while getopts ":p:h:o:i:s" opt; do
     case ${opt} in
-        n)
-            if [ -z "$OPTARG" ]; then
-                echo "The -n arg is required."
-                usage
-            fi
-            NEW_PASSWORD=${OPTARG}
-            ;;
+        p) NEW_PASSWORD=${OPTARG} ;;
         h)
             if [[ "$OPTARG" =~ ^[a-z]([a-z0-9-]*[a-z0-9])?$ ]]; then
                 HOSTNAME=${OPTARG}
@@ -62,10 +56,7 @@ main(){
 }
 
 validateOpts(){
-    if [[ ${NEW_PASSWORD} == "null" || ${HOSTNAME} == "null" ]]; then
-        echo "Must set -n and / or -h options."
-        usage
-    fi
+  # n/a
 }
 
 setupSshKey(){
@@ -85,6 +76,7 @@ updateAndInstallPackages(){
 
 # use diff-highlight as diff tool / pager
 setupGit(){
+    echo -e "\\nSetting up git..."
     make -C /usr/share/doc/git/contrib/diff-highlight
     git config --global core.pager '/usr/share/doc/git/contrib/diff-highlight/diff-highlight | less'
 }
@@ -99,11 +91,14 @@ setupGit(){
 # 2) setting up ssh port forwarding for our port in the computer we are sshing from
 # 3) configuring the rsub sublime plugin to use our port in its settings (package control -> list packages -> rsub)
 installRmate(){
+    echo -e "\\nInstalling rmate..."
     sudo wget -O /usr/local/bin/subl https://raw.githubusercontent.com/aurora/rmate/master/rmate
     sudo chmod a+x /usr/local/bin/subl
 }
 
 changeAndSetupShell(){
+    echo -e "\\nSetting up zsh shell..."
+
     # change default shell
     echo "$OLD_PASSWORD" | chsh -s /usr/bin/zsh
 
@@ -118,6 +113,7 @@ changeAndSetupShell(){
     fzf_tab_dir="$HOME/.config/zsh"
     mkdir -p "$fzf_tab_dir"
     git -C "$fzf_tab_dir" clone https://github.com/Aloxaf/fzf-tab
+    curl https://raw.githubusercontent.com/dasl-/pitools/main/dotfiles/.zshrc > "$HOME/.zshrc"
 }
 
 # Allows sshing and hitting the pifi webpage via "<hostname>.local"

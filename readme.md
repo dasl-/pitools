@@ -1,13 +1,8 @@
 # pitools: setup new raspberry pis
 1. insert SD card into laptop / desktop
-1. from laptop: `./setup_sd_card --disk-num <disk_num> --disk-image <disk_img> --wifi-network-name <network> --wifi-password <password>`
+1. from laptop: `./001_setup_sd_card --disk-num <disk_num> --disk-image <disk_img> --wifi-network-name <network> --wifi-password <password>`
 1. insert SD card into raspberry pi; boot raspberry pi
-1. from laptop: `ssh pi@raspberrypi.local -- 'mkdir -p ~/.ssh' # maybe not needed?`
-1. from laptop: `ssh-copy-id -i ~/.ssh/path_to_my_key.pub pi@raspberrypi.local`
-1. from laptop: `scp ~/.ssh/standard_raspberry_pi_key/id_ed25519 ~/.ssh/standard_raspberry_pi_key/id_ed25519.pub pi@raspberrypi.local:~/.ssh`
-1. from laptop: `ssh pi@raspberrypi.local` (default password: `raspberry`)
-1. from pi: `curl https://raw.githubusercontent.com/dasl-/pitools/main/provision_pi > provision_pi && chmod a+x provision_pi`
-1. from pi: `./provision_pi -n <new_password> -h <hostname>`
+1. from laptop: `./002_provision_pi -i <SSH_KEY_TO_AUTHORIZE> -j <SSH_KEY_TO_ADD> -h <NEW_HOSTNAME> -p <NEW_PASSWORD]`
 
 ## development setup
 1. The `provision_pi` script will install `rmate` / `subl`. We use a non-standard port though, which requires some extra setup. See comments in `provision_pi`. Your editor may also need a plugin to make use of this though: https://github.com/aurora/rmate#set-up-editor
