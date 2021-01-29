@@ -61,6 +61,7 @@ def setupSsh():
     command(f'sudo touch {args.device_path}/ssh')
 
 def finish():
+    print("Ejecting SD card...")
     command(f'sudo diskutil eject /dev/rdisk{args.disk_num}')
     print("""
 SD card setup was successful! Please insert the SD card into the raspberry pi and boot it up.
