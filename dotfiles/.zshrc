@@ -87,6 +87,9 @@ alias git_undo_last_commit="git reset --soft 'HEAD^'"
 # https://github.com/aurora/rmate#set-up-editor
 alias subl="subl --port 52699"
 
+# avoids: "zsh: command not found: shutdown". I guess it's a bash builtin?
+alias shutdown="/usr/sbin/shutdown"
+
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 # fzf

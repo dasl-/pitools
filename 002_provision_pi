@@ -64,7 +64,10 @@ validateOpts(){
 setupSsh(){
     echo -e "\\nAuthorizing passwordless ssh with $SSH_KEY_TO_AUTHORIZE..."
     echo -e "When asked for a password, please enter the raspberry pi's password (probably: '$OLD_PASSWORD').\\n"
-    ssh-copy-id -o StrictHostKeyChecking=no -i "$SSH_KEY_TO_AUTHORIZE" pi@"$OLD_HOSTNAME"
+    # dont warn about hostkey not existing, don't add host key to known_hosts file since this may be a short lived
+    # "raspberrypi.local" host if we are changing the hostname anyway. Else subsequent hosts with the same name
+    # will have SSH errors if another machine's host key is already present under the "rapberrypi.local" hostname.
+    ssh-copy-id -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" -i "$SSH_KEY_TO_AUTHORIZE" pi@"$OLD_HOSTNAME"
 
     if [[ ${SSH_KEY_TO_ADD} == *.pub ]]; then
         PUB_SSH_KEY_TO_ADD="$SSH_KEY_TO_ADD"

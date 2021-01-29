@@ -49,7 +49,6 @@ main(){
     maybeEnableSpi
     changePassword
 
-    sleep 1
     echo -e "\\nRestarting..."
     echo -e "Pi will be available via:\\n"
     echo -e "  ssh pi@$HOSTNAME.local\\n"
@@ -68,6 +67,7 @@ setupSshKey(){
     echo "https://github.com/settings/keys"
     eval "$(ssh-agent -s)"
     ssh-add "$PATH_TO_SSH_KEY"
+    sleep 1 # ssh setup is randomly slow to complete. Wait a bit to avoid cloberring subsequent output lines.
 }
 
 updateAndInstallPackages(){
@@ -140,6 +140,7 @@ maybeEnableSpi(){
 changePassword(){
     echo -e "\\nChanging password to: $NEW_PASSWORD"
     echo -e "$OLD_PASSWORD\n$NEW_PASSWORD\n$NEW_PASSWORD" | passwd
+    sleep 1 # password setup is randomly slow to complete. Wait a bit to avoid cloberring subsequent output lines.
 }
 
 main
