@@ -84,12 +84,13 @@ provisionPi(){
     echo -e "\\nProvisioning raspberry pi..."
 
     provision_cmd="ssh pi@$OLD_HOSTNAME -- "
-    provision_cmd+="curl https://raw.githubusercontent.com/dasl-/pitools/main/provision_pi > provision_pi && "
+    provision_cmd+="'curl https://raw.githubusercontent.com/dasl-/pitools/main/provision_pi > provision_pi && "
     provision_cmd+="chmod a+x provision_pi && "
     provision_cmd+="./provision_pi -p $NEW_PASSWORD -h $NEW_HOSTNAME -o $OLD_PASSWORD -i /home/pi/.ssh/$PRIV_SSH_KEY_FILE "
     if [[ ${ENABLE_SPI} == "true" ]]; then
         provision_cmd+="-s "
     fi
+    provision_cmd+="'"
     echo "Running: $provision_cmd"
     eval "$provision_cmd"
 }

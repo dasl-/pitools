@@ -60,10 +60,6 @@ validateOpts(){
 }
 
 setupSshKey(){
-    echo "$HOME"
-    echo "$HOST"
-    exit
-
     echo -e "\\nSetting up ssh key... If you still need to add this key to your github account, see: "
     echo "https://docs.github.com/en/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account"
     echo "https://github.com/settings/keys"
