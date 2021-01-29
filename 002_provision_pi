@@ -96,7 +96,7 @@ provisionPi(){
     if [[ ${ENABLE_SPI} == "true" ]]; then
         provision_cmd+="-s "
     fi
-    provision_cmd+="'"
+    provision_cmd+="&& rm provision_pi'"
     echo "Running: $provision_cmd"
     eval "$provision_cmd"
 }
