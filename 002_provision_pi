@@ -63,8 +63,8 @@ validateOpts(){
 
 setupSsh(){
     echo -e "\\nAuthorizing passwordless ssh with $SSH_KEY_TO_AUTHORIZE..."
-    echo "When asked for a password, please enter the raspberry pi's password (probably: $OLD_PASSWORD )."
-    ssh-copy-id -i "$SSH_KEY_TO_AUTHORIZE" pi@"$RASPBERRY_PI_HOSTNAME"
+    echo -e "When asked for a password, please enter the raspberry pi's password (probably: '$OLD_PASSWORD').\\n"
+    ssh-copy-id -o StrictHostKeyChecking=no -i "$SSH_KEY_TO_AUTHORIZE" pi@"$OLD_HOSTNAME"
 
     if [[ ${SSH_KEY_TO_ADD} == *.pub ]]; then
         PUB_SSH_KEY_TO_ADD="$SSH_KEY_TO_ADD"
@@ -73,9 +73,9 @@ setupSsh(){
         PRIV_SSH_KEY_TO_ADD="$SSH_KEY_TO_ADD"
         PUB_SSH_KEY_TO_ADD="$PRIV_SSH_KEY_TO_ADD".pub
     fi
-    PRIV_SSH_KEY_FILE=$(basename PRIV_SSH_KEY_TO_ADD)
+    PRIV_SSH_KEY_FILE=$(basename $PRIV_SSH_KEY_TO_ADD)
 
-    destination="pi@$RASPBERRY_PI_HOSTNAME:~/.ssh"
+    destination="pi@$OLD_HOSTNAME:~/.ssh"
     echo -e "\\nCopying $PUB_SSH_KEY_TO_ADD and $PRIV_SSH_KEY_TO_ADD to $destination..."
     scp "$PUB_SSH_KEY_TO_ADD" "$PRIV_SSH_KEY_TO_ADD" "$destination"
 }

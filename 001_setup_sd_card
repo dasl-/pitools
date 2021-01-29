@@ -2,8 +2,10 @@
 
 import argparse
 import os
+import sys
 import subprocess
 import pathlib
+import time
 
 BASH_EXECUTABLE='/bin/bash'
 
@@ -34,6 +36,17 @@ def imageSdCard():
     print("Writing disk image, may take up to 15 minutes...")
     command(f'diskutil unmountDisk /dev/disk{args.disk_num}')
     command(f'sudo dd bs=1m if={args.disk_image} of=/dev/rdisk{args.disk_num}; sync')
+
+    # Wait a few seconds for args.device_path to remount again (I guess this takes some time?).
+    # Need it to be remounted before writing wifi and ssh files.
+    time_limit = time.time() + 10
+    while True:
+        if os.path.isdir(args.device_path):
+            break
+        time.sleep(0.5)
+        if time.time() > time_limit:
+            print(f"Failed to remount {args.device_path}.")
+            sys.exit(1)
 
 # https://raspberrypi.stackexchange.com/a/57023
 def setupWifi():
