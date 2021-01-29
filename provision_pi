@@ -56,7 +56,7 @@ main(){
 }
 
 validateOpts(){
-  # n/a
+    :
 }
 
 setupSshKey(){

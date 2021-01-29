@@ -28,7 +28,7 @@ usage(){
     exit 1
 }
 
-while getopts ":i:j:" opt; do
+while getopts ":i:j:h:g:p:o:s" opt; do
     case ${opt} in
         i) SSH_KEY_TO_AUTHORIZE=${OPTARG} ;;
         j) SSH_KEY_TO_ADD=${OPTARG} ;;
@@ -58,7 +58,7 @@ main(){
 }
 
 validateOpts(){
-    # n/a
+    :
 }
 
 setupSsh(){
@@ -77,7 +77,7 @@ setupSsh(){
 
     destination="pi@$RASPBERRY_PI_HOSTNAME:~/.ssh"
     echo -e "\\nCopying $PUB_SSH_KEY_TO_ADD and $PRIV_SSH_KEY_TO_ADD to $destination..."
-    scp "$PUB_SSH_KEY_TO_ADD" "$PRIV_SSH_KEY_TO_ADD" $destination
+    scp "$PUB_SSH_KEY_TO_ADD" "$PRIV_SSH_KEY_TO_ADD" "$destination"
 }
 
 provisionPi(){
@@ -91,7 +91,7 @@ provisionPi(){
         provision_cmd+="-s "
     fi
     echo "Running: $provision_cmd"
-    eval $provision_cmd
+    eval "$provision_cmd"
 }
 
 main

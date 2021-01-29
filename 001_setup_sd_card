@@ -5,6 +5,8 @@ import os
 import subprocess
 import pathlib
 
+BASH_EXECUTABLE='/bin/bash'
+
 def parseArgs():
     parser = argparse.ArgumentParser(description="""
         setup new sd card for raspberry pi. Images disk, sets up wifi, sets up ssh. Run from laptop.
@@ -29,32 +31,35 @@ def parseArgs():
 
 # https://www.raspberrypi.org/documentation/installation/installing-images/mac.md
 def imageSdCard():
-    command(f'diskutil unmountDisk /dev/disk{args.disk_num}')
     print("Writing disk image, may take up to 15 minutes...")
+    command(f'diskutil unmountDisk /dev/disk{args.disk_num}')
     command(f'sudo dd bs=1m if={args.disk_image} of=/dev/rdisk{args.disk_num}; sync')
 
 # https://raspberrypi.stackexchange.com/a/57023
 def setupWifi():
+    print("Setting up wifi...")
     my_dir = pathlib.Path(__file__).parent.absolute()
     command(f'sudo {my_dir}/wifi_config --wifi-network-name {args.wifi_network_name} ' +
-        '--wifi-password {args.wifi_password} --wifi-country-code {args.wifi_country_code} --device-path {args.device_path}')
+        f'--wifi-password {args.wifi_password} --wifi-country-code {args.wifi_country_code} ' +
+        f'--device-path {args.device_path}')
 
 def setupSsh():
+    print("Enabling ssh...")
     command(f'sudo touch {args.device_path}/ssh')
 
 def finish():
     command(f'sudo diskutil eject /dev/rdisk{args.disk_num}')
     print("""
-pi should be accessible via:
+SD card setup was successful! Please insert the SD card into the raspberry pi and boot it up.
+Your raspberry pi will be accessible via:
 
-ssh pi@raspberrypi.local
-
-password: raspberry
+    ssh pi@raspberrypi.local
+    password: raspberry
 """)
 
 def command(command):
     return (subprocess
-        .check_output(command, shell = True, executable = '/usr/bin/env bash')
+        .check_output(command, shell = True, executable = BASH_EXECUTABLE)
         .decode("utf-8"))
 
 
