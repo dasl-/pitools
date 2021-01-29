@@ -49,9 +49,12 @@ main(){
     maybeEnableSpi
     changePassword
 
+    sleep 1
     echo -e "\\nRestarting..."
-    echo "Pi will be available via:"
+    echo -e "Pi will be available via:\\n"
     echo -e "  ssh pi@$HOSTNAME.local\\n"
+
+    sleep 1
     sudo shutdown -r now
 }
 
