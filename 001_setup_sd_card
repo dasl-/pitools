@@ -35,7 +35,7 @@ def parseArgs():
 def imageSdCard():
     print("Writing disk image, may take up to 15 minutes...")
     command(f'diskutil unmountDisk /dev/disk{args.disk_num}')
-    command(f'sudo dd bs=1m if={args.disk_image} of=/dev/rdisk{args.disk_num}; sync')
+    command(f'sudo dd bs=1m if={args.disk_image} of=/dev/rdisk{args.disk_num} status=progress; sync')
 
     # Wait a few seconds for args.device_path to remount again (I guess this takes some time?).
     # Need it to be remounted before writing wifi and ssh files.
