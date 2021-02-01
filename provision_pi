@@ -79,9 +79,9 @@ setupSshKey(){
 
 updateAndInstallPackages(){
     echo -e "\\nUpdating and installing packages..."
-    sudo apt-get update
-    sudo apt-get -y install fzf git mlocate vim zsh zsh-syntax-highlighting
-    sudo apt-get -y dist-upgrade
+    sudo apt update
+    sudo apt -y install fzf git mlocate vim zsh zsh-syntax-highlighting
+    sudo apt -y full-upgrade
 }
 
 # use diff-highlight as diff tool / pager
