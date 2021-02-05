@@ -138,10 +138,8 @@ changeAndSetupShell(){
 # See: https://www.raspberrypi.org/documentation/remote-access/ip-address.md "Resolving raspberrypi.local with mDNS"
 setHostname(){
     echo -e "\\nSetting hostname to: $HOSTNAME"
-    if [[ $(cat /etc/hostname) != pifi ]]; then
-        echo "$HOSTNAME" | sudo tee /etc/hostname >/dev/null 2>&1
-        sudo sed -i -E 's/(127\.0\.1\.1\s+)[^ ]+/\1'"$HOSTNAME"'/g' /etc/hosts
-    fi
+    echo "$HOSTNAME" | sudo tee /etc/hostname >/dev/null 2>&1
+    sudo sed -i -E 's/(127\.0\.1\.1\s+)[^ ]+/\1'"$HOSTNAME"'/g' /etc/hosts
 }
 
 maybeEnableSpi(){
