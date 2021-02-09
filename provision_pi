@@ -131,7 +131,7 @@ changeAndSetupShell(){
     fzf_tab_dir="$HOME/.config/zsh"
     mkdir -p "$fzf_tab_dir"
     git -C "$fzf_tab_dir" clone https://github.com/Aloxaf/fzf-tab
-    curl https://raw.githubusercontent.com/dasl-/pitools/main/dotfiles/.zshrc > "$HOME/.zshrc"
+    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.zshrc > "$HOME/.zshrc"
 }
 
 # Allows sshing and hitting the pifi webpage via "<hostname>.local"
