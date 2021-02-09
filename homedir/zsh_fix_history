@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -eou pipefail
+#!/usr/bin/env zsh
+set -eu -o pipefail
 
 # Fix errors on login and history reading: `zsh: corrupt history file /home/pi/.zsh_history`
 # https://superuser.com/questions/957913/how-to-fix-and-recover-a-corrupt-history-file-in-zsh
