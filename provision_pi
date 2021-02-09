@@ -134,7 +134,7 @@ changeAndSetupShell(){
     curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.zshrc > "$HOME/.zshrc"
 
     curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/zsh_fix_history > "$HOME/zsh_fix_history"
-    sudo chmod a+x zsh_fix_history
+    sudo chmod a+x "$HOME/zsh_fix_history"
 }
 
 # Allows sshing and hitting the pifi webpage via "<hostname>.local"
