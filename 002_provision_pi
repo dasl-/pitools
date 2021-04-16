@@ -8,8 +8,10 @@ OLD_HOSTNAME="raspberrypi.local"
 NEW_HOSTNAME="$OLD_HOSTNAME"
 OLD_PASSWORD="raspberry"
 NEW_PASSWORD="$OLD_PASSWORD"
+GIT_USER_EMAIL=''
+GIT_USER_NAME=''
 ENABLE_SPI=false
-PRIV_SSH_KEY_FILE=null
+PRIV_SSH_KEY_FILE=''
 
 # Make things require as little user input as possible.
 # dont warn about hostkey not existing, don't add host key to known_hosts file since this may be a short lived
@@ -29,12 +31,14 @@ usage(){
     echo "  -g OLD_HOSTNAME         : Defaults to $OLD_HOSTNAME"
     echo "  -p NEW_PASSWORD         : Change the raspberry pi's password. Defaults to $OLD_PASSWORD"
     echo "  -o OLD_PASSWORD         : Defaults to $OLD_PASSWORD"
+    echo "  -e GIT_USER_EMAIL       : email address for git"
+    echo "  -u GIT_USER_NAME        : user name for git"
     echo "  -s                      : Enable SPI"
 
     exit 1
 }
 
-while getopts ":i:j:h:g:p:o:s" opt; do
+while getopts ":i:j:h:g:p:o:e:u:s" opt; do
     case ${opt} in
         i) SSH_KEY_TO_AUTHORIZE=${OPTARG} ;;
         j) SSH_KEY_TO_ADD=${OPTARG} ;;
@@ -49,6 +53,8 @@ while getopts ":i:j:h:g:p:o:s" opt; do
         g) OLD_HOSTNAME=${OPTARG} ;;
         p) NEW_PASSWORD=${OPTARG} ;;
         o) OLD_PASSWORD=${OPTARG} ;;
+        e) GIT_USER_EMAIL=${OPTARG} ;;
+        u) GIT_USER_NAME=${OPTARG} ;;
         s) ENABLE_SPI=true ;;
         *) usage ;;
       esac
@@ -92,7 +98,7 @@ provisionPi(){
     provision_cmd="ssh $SSH_OPTS pi@$OLD_HOSTNAME -- "
     provision_cmd+="'curl https://raw.githubusercontent.com/dasl-/pitools/main/provision_pi > provision_pi && "
     provision_cmd+="chmod a+x provision_pi && "
-    provision_cmd+="./provision_pi -p $NEW_PASSWORD -h $NEW_HOSTNAME -o $OLD_PASSWORD -i /home/pi/.ssh/$PRIV_SSH_KEY_FILE -r "
+    provision_cmd+="./provision_pi -p $NEW_PASSWORD -h $NEW_HOSTNAME -o $OLD_PASSWORD -i /home/pi/.ssh/$PRIV_SSH_KEY_FILE -e $GIT_USER_EMAIL -u $GIT_USER_NAME -r "
     if [[ ${ENABLE_SPI} == "true" ]]; then
         provision_cmd+="-s "
     fi

@@ -2,7 +2,7 @@
 1. insert SD card into laptop / desktop
 1. from laptop: `./001_setup_sd_card --disk-num <disk_num> --disk-image <disk_img> --wifi-network-name <network> --wifi-password <password>`
 1. insert SD card into raspberry pi; boot raspberry pi
-1. from laptop: `./002_provision_pi -i <SSH_KEY_TO_AUTHORIZE> -j <SSH_KEY_TO_ADD> -h <NEW_HOSTNAME> -p <NEW_PASSWORD>`
+1. from laptop: `./002_provision_pi -i <SSH_KEY_TO_AUTHORIZE> -j <SSH_KEY_TO_ADD> -h <NEW_HOSTNAME> -p <NEW_PASSWORD> -e <GIT_USER_EMAIL> -u <GIT_USER_NAME>`
 
 ## help output
 ```
@@ -40,6 +40,8 @@ Run this from laptop.
   -g OLD_HOSTNAME         : Defaults to raspberrypi.local
   -p NEW_PASSWORD         : Change the raspberry pi's password. Defaults to raspberry
   -o OLD_PASSWORD         : Defaults to raspberry
+  -e GIT_USER_EMAIL       : email address for git
+  -u GIT_USER_NAME        : user name for git
   -s                      : Enable SPI
 ```
 

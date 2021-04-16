@@ -5,6 +5,8 @@ set -eou pipefail
 OLD_PASSWORD='raspberry'
 NEW_PASSWORD="$OLD_PASSWORD"
 PATH_TO_SSH_KEY="$HOME/.ssh/id_ed25519"
+GIT_USER_EMAIL=''
+GIT_USER_NAME=''
 HOSTNAME="raspberrypi.local"
 ENABLE_SPI=false
 SHOULD_DELETE_SELF=false
@@ -16,12 +18,14 @@ usage(){
     echo "  -h HOSTNAME        : Set the hostname. Defaults to $HOSTNAME."
     echo "  -o OLD_PASSWORD    : defaults to: $OLD_PASSWORD"
     echo "  -i PATH_TO_SSH_KEY : defaults to: $PATH_TO_SSH_KEY"
+    echo "  -e GIT_USER_EMAIL  : email address for git"
+    echo "  -u GIT_USER_NAME   : user name for git"
     echo "  -s                 : Enable SPI"
     echo "  -r                 : delete self (this script) after running"
     exit 1
 }
 
-while getopts ":p:h:o:i:sr" opt; do
+while getopts ":p:h:o:i:e:u:sr" opt; do
     case ${opt} in
         p) NEW_PASSWORD=${OPTARG} ;;
         h)
@@ -34,6 +38,8 @@ while getopts ":p:h:o:i:sr" opt; do
             ;;
         o) OLD_PASSWORD=${OPTARG} ;;
         i) PATH_TO_SSH_KEY=${OPTARG} ;;
+        e) GIT_USER_EMAIL=${OPTARG} ;;
+        u) GIT_USER_NAME=${OPTARG} ;;
         s) ENABLE_SPI=true ;;
         r) SHOULD_DELETE_SELF=true ;;
         *) usage ;;
@@ -89,6 +95,14 @@ setupGit(){
     echo -e "\\nSetting up git..."
     sudo make -C /usr/share/doc/git/contrib/diff-highlight
     git config --global core.pager '/usr/share/doc/git/contrib/diff-highlight/diff-highlight | less'
+    if [[ -z ${GIT_USER_EMAIL} ]]; then
+        echo -e "\\nSetting git user email to $GIT_USER_EMAIL..."
+        git config --global user.email "$GIT_USER_EMAIL"
+    fi
+    if [[ -z ${GIT_USER_NAME} ]]; then
+        echo -e "\\nSetting git user name to $GIT_USER_NAME..."
+        git config --global user.name "$GIT_USER_NAME"
+    fi
 }
 
 # allows `subl path_to_file.txt` to use sublime text to edit the file on the pi
