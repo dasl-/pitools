@@ -95,11 +95,11 @@ setupGit(){
     echo -e "\\nSetting up git..."
     sudo make -C /usr/share/doc/git/contrib/diff-highlight
     git config --global core.pager '/usr/share/doc/git/contrib/diff-highlight/diff-highlight | less'
-    if [[ -z ${GIT_USER_EMAIL} ]]; then
+    if [[ -n ${GIT_USER_EMAIL} ]]; then
         echo -e "\\nSetting git user email to $GIT_USER_EMAIL..."
         git config --global user.email "$GIT_USER_EMAIL"
     fi
-    if [[ -z ${GIT_USER_NAME} ]]; then
+    if [[ -n ${GIT_USER_NAME} ]]; then
         echo -e "\\nSetting git user name to $GIT_USER_NAME..."
         git config --global user.name "$GIT_USER_NAME"
     fi
