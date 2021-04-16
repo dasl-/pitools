@@ -93,9 +93,9 @@ alias shutdown="/usr/sbin/shutdown"
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 # fzf
-source /usr/share/doc/fzf/examples/key-bindings.zsh
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-# change native zsh autocomplete to always use fzf
+# fzf-tab: change native zsh autocomplete to always use fzf
 # https://github.com/Aloxaf/fzf-tab#install
 source "$HOME/.config/zsh/fzf-tab/fzf-tab.plugin.zsh"
 
