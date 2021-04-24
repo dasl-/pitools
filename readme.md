@@ -46,7 +46,7 @@ Run this from laptop.
 ```
 
 ## development setup
-1. The `provision_pi` script will install `rmate` / `subl`. We use a non-standard port though, which requires some extra setup. See comments in `provision_pi`. Your editor may also need a plugin to make use of this though: https://github.com/aurora/rmate#set-up-editor
+1. The `provision_pi` script will install `rmate` / `subl`. Your editor may also need a plugin to make use of this though: https://github.com/aurora/rmate#set-up-editor
 
 ## other useful commands for setting up
 1. find its IP: `sudo arp-scan --interface=en0 --localnet` or `sudo nmap -sS -p 22 192.168.1.0/24`
