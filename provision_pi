@@ -120,12 +120,12 @@ installRmate(){
     sudo chmod a+x /usr/local/bin/subl
 }
 
-# Useful for the wifi_config script
+# Useful for the wifi_config script, shairplay-sync installation, etc
 clonePiTools(){
     echo -e "\\nInstalling pitools..."
     dev_dir="$HOME/development"
     mkdir -p "$dev_dir"
-    git -C "$dev_dir" clone https://github.com/dasl-/pitools.git
+    git -C "$dev_dir" clone git@github.com:dasl-/pitools.git
 }
 
 changeAndSetupShell(){
