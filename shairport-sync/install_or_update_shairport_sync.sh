@@ -40,7 +40,7 @@ main(){
 }
 
 updatePackages(){
-    echo "Updating and installing packages..."
+    info "Updating and installing packages..."
     sudo apt update
     sudo apt -y install build-essential git xmltoman autoconf automake libtool \
         libpopt-dev libconfig-dev libasound2-dev avahi-daemon libavahi-client-dev libssl-dev libsoxr-dev
@@ -49,7 +49,7 @@ updatePackages(){
 
 # https://github.com/raspberrypi/linux/issues/2522#issuecomment-692559920
 disableWifiPowerManagement(){
-    echo "Disabling wifi power management..."
+    info "Disabling wifi power management..."
 
     # disable it
     sudo iwconfig wlan0 power off
@@ -60,7 +60,7 @@ disableWifiPowerManagement(){
 }
 
 removeOldVersions(){
-    echo "Removing old versions (if found)..."
+    info "Removing old versions (if found)..."
     while [ "$(which shairport-sync)" ]
     do
         sudo rm "$(which shairport-sync)"
@@ -75,8 +75,8 @@ removeOldVersions(){
 }
 
 reboot(){
-    echo "Rebooting..."
-    echo "When done rebooting, re-run this script with the -x flag to complete installation."
+    info "Rebooting..."
+    info "When done rebooting, re-run this script with the -x flag to complete installation."
     sudo shutdown -r now
 }
 
@@ -84,16 +84,16 @@ cloneOrPullRepo(){
     mkdir -p $BASE_DIR
     if [ ! -d $REPO_PATH ]
     then
-        echo "Cloning repo..."
+        info "Cloning repo..."
         git clone https://github.com/mikebrady/shairport-sync.git $REPO_PATH
     else
-        echo "Pulling repo..."
+        info "Pulling repo..."
         git -C $REPO_PATH pull
     fi
 }
 
 build(){
-    echo "Building... This may take a while..."
+    info "Building... This may take a while..."
     cd $REPO_PATH
     autoreconf -fi
     ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd
@@ -124,6 +124,16 @@ startService(){
     sudo systemctl enable shairport-sync
     sudo systemctl daemon-reload
     sudo systemctl restart shairport-sync
+}
+
+info() {
+    echo -e "\x1b[32m$@\x1b[0m" # green stdout
+}
+
+die() {
+    echo
+    echo -e "\x1b[31m$@\x1b[0m" >&2 # red stderr
+    exit 1
 }
 
 main
