@@ -104,6 +104,7 @@ build(){
 # Only add configuration file if it is not already present
 maybeConfigure(){
 if [ ! -f /etc/shairport-sync.conf ]; then
+    info "Configuring..."
     cat <<-EOF | sudo tee /etc/shairport-sync.conf >/dev/null
 // Sample Configuration File for Shairport Sync on a Raspberry Pi using the built-in audio DAC
 general =
@@ -121,6 +122,7 @@ fi
 }
 
 startService(){
+    info "Starting service..."
     sudo systemctl enable shairport-sync
     sudo systemctl daemon-reload
     sudo systemctl restart shairport-sync
