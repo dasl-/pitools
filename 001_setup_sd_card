@@ -11,7 +11,7 @@ BASH_EXECUTABLE='/bin/bash'
 
 def parseArgs():
     parser = argparse.ArgumentParser(description="""
-        setup new sd card for raspberry pi. Images disk, sets up wifi, sets up ssh. Run from laptop.
+        Setup new sd card for raspberry pi. Must be run as sudo. Images disk, sets up wifi, sets up ssh. Run from laptop.
         """)
     parser.add_argument('--disk-num', dest='disk_num', action='store', required = True,
         help='Disk number via `diskutil list`. This disk will be overwritten, so don\'t get this wrong.')
@@ -26,6 +26,11 @@ def parseArgs():
     parser.add_argument('--wifi-country-code', dest='wifi_country_code', action='store', default='US',
         help='Your ISO-3166-1 two-letter country code. Default: %(default)s. See: ' +
         'https://www.iso.org/obp/ui/#search')
+
+    if os.getuid() != 0:
+        print("This script must be run as sudo.\n")
+        parser.print_help()
+        exit(1)
 
     args = parser.parse_args()
     args.device_path = args.device_path.rstrip('/')
@@ -75,11 +80,6 @@ def command(command):
     return (subprocess
         .check_output(command, shell = True, executable = BASH_EXECUTABLE)
         .decode("utf-8"))
-
-
-if os.getuid() != 0:
-    print("This script must be run as sudo")
-    exit(1)
 
 args = parseArgs()
 imageSdCard()
