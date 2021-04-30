@@ -103,6 +103,11 @@ build(){
 
 # Only add configuration file if it is not already present
 maybeConfigure(){
+    #TODO: this doesnt work because the installation drops a default conf file. Perhaps diff it with the sample
+    # to determine if it's been modified
+    # Also need to address: https://github.com/mikebrady/shairport-sync/issues/1183
+    # if using SW volume, perhaps set HW volume to 100% on system restart
+    # todo: read https://github.com/mikebrady/shairport-sync/issues/651
 if [ ! -f /etc/shairport-sync.conf ]; then
     info "Configuring..."
     cat <<-EOF | sudo tee /etc/shairport-sync.conf >/dev/null
