@@ -10,7 +10,7 @@ REPO_PATH="$BASE_DIR""/shairport-sync"
 
 usage(){
     echo "Usage: $(basename "${0}")"
-    echo "Installs shairport-sync on a raspberry pi."
+    echo "Installs or updates shairport-sync on a raspberry pi."
     echo "  -d BASE_DIRECTORY : Base directory in which to clone shairport_sync. Trailing slash optional."
     echo "                      Defaults to $BASE_DIR."
     exit 1
