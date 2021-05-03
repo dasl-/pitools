@@ -66,10 +66,11 @@ removeOldVersions(){
         /etc/dbus-1/system.d/shairport-sync-mpris.conf \
         /usr/lib/systemd/system/shairport-sync.service
 
-    sudo systemctl stop shairport-sync.service
-    sudo systemctl disable shairport-sync.service
-    sudo systemctl daemon-reload
-    sudo systemctl reset-failed
+    # these might exit non-zero if the service is not yet installed
+    sudo systemctl stop shairport-sync.service || true
+    sudo systemctl disable shairport-sync.service || true
+    sudo systemctl daemon-reload || true
+    sudo systemctl reset-failed || true
 }
 
 cloneOrPullRepo(){
