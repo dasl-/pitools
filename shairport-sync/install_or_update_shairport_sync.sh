@@ -5,38 +5,30 @@
 
 set -eou pipefail
 
-is_second_run=false
 BASE_DIR=/home/pi/development
 REPO_PATH="$BASE_DIR""/shairport-sync"
 
 usage(){
-    echo "Usage: $(basename "${0}") [-x]"
+    echo "Usage: $(basename "${0}")"
     echo "Install shairport-sync https://github.com/mikebrady/shairport-sync."
-    echo "Running this script is a two part process. After the first run, a reboot will occur."
-    echo "After rebooting, re-run this script with the -x flag."
-    echo "  -x     : Run the installation steps after rebooting"
     exit 1
 }
 
-while getopts "x" opt; do
+while getopts "h" opt; do
     case ${opt} in
-        x) is_second_run=true ;;
-        *) usage ;;
+        h) usage ;;
       esac
 done
 
 main(){
-    if [[ ${is_second_run} == "false" ]]; then
-        updatePackages
-        # disableWifiPowerManagement let's see if this causes problems before disabling.
-        removeOldVersions
-        reboot
-    else
-        cloneOrPullRepo
-        build
-        maybeConfigure
-        startService
-    fi
+    updatePackages
+    # disableWifiPowerManagement let's see if this causes problems before disabling.
+    removeOldVersions
+    reboot
+    cloneOrPullRepo
+    build
+    maybeConfigure
+    startService
 }
 
 updatePackages(){
@@ -71,13 +63,13 @@ removeOldVersions(){
         /lib/systemd/system/shairport-sync.service \
         /etc/init.d/shairport-sync \
         /etc/dbus-1/system.d/shairport-sync-dbus.conf \
-        /etc/dbus-1/system.d/shairport-sync-mpris.conf
-}
+        /etc/dbus-1/system.d/shairport-sync-mpris.conf \
+        /usr/lib/systemd/system/shairport-sync.service
 
-reboot(){
-    info "Rebooting..."
-    info "When done rebooting, re-run this script with the -x flag to complete installation."
-    sudo shutdown -r now
+    sudo systemctl stop shairport-sync.service
+    sudo systemctl disable shairport-sync.service
+    sudo systemctl daemon-reload
+    sudo systemctl reset-failed
 }
 
 cloneOrPullRepo(){
