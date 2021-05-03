@@ -125,7 +125,7 @@ clonePiTools(){
     echo -e "\\nInstalling pitools..."
     dev_dir="$HOME/development"
     mkdir -p "$dev_dir"
-    git -C "$dev_dir" clone git@github.com:dasl-/pitools.git
+    git -C "$dev_dir" clone https://github.com/dasl-/pitools.git
 }
 
 changeAndSetupShell(){
