@@ -5,17 +5,23 @@
 
 set -eEou pipefail
 
-BASE_DIR=/home/pi/development
+BASE_DIR=/home/pi
 REPO_PATH="$BASE_DIR""/shairport-sync"
 
 usage(){
     echo "Usage: $(basename "${0}")"
-    echo "Install shairport-sync https://github.com/mikebrady/shairport-sync."
+    echo "Installs shairport-sync on a raspberry pi."
+    echo "  -d BASE_DIRECTORY : Base directory in which to clone shairport_sync. Trailing slash optional."
+    echo "                      Defaults to $BASE_DIR."
     exit 1
 }
 
-while getopts "h" opt; do
+while getopts "d:" opt; do
     case ${opt} in
+        d)
+            BASE_DIR=${OPTARG%/}  # remove trailing slash if present
+            REPO_PATH="$BASE_DIR""/shairport-sync"
+            ;;
         *) usage ;;
     esac
 done
@@ -23,7 +29,7 @@ done
 main(){
     trap 'fail $? $LINENO' ERR
     updatePackages
-    # disableWifiPowerManagement let's see if this causes problems before disabling.
+    disableWifiPowerManagement
     removeOldVersions
     cloneOrPullRepo
     build
@@ -80,36 +86,36 @@ removeOldVersions(){
 }
 
 cloneOrPullRepo(){
-    mkdir -p $BASE_DIR
-    if [ ! -d $REPO_PATH ]
+    mkdir -p "$BASE_DIR"
+    if [ ! -d "$REPO_PATH" ]
     then
         info "Cloning repo..."
-        git clone https://github.com/mikebrady/shairport-sync.git $REPO_PATH
+        git clone https://github.com/mikebrady/shairport-sync.git "$REPO_PATH"
     else
         info "Pulling repo..."
-        git -C $REPO_PATH pull
+        git -C "$REPO_PATH" pull
     fi
 }
 
 build(){
     info "Building... This may take a while..."
-    cd $REPO_PATH
+    pushd "$REPO_PATH"
     autoreconf -fi
     ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd
     make
     sudo make install
+    popd
 }
 
 # Only add configuration file if it is not already present
 maybeConfigure(){
-    #TODO: this doesnt work because the installation drops a default conf file. Perhaps diff it with the sample
-    # to determine if it's been modified
-    # Also need to address: https://github.com/mikebrady/shairport-sync/issues/1183
-    # if using SW volume, perhaps set HW volume to 100% on system restart
-    # todo: read https://github.com/mikebrady/shairport-sync/issues/651
-if [ ! -f /etc/shairport-sync.conf ]; then
-    info "Configuring..."
-    cat <<-EOF | sudo tee /etc/shairport-sync.conf >/dev/null
+    # If the shairport-sync.conf file matches the sample file, assume it has not been modified and is
+    # safe to overwrite.
+    if diff -qs /etc/shairport-sync.conf /etc/shairport-sync.conf.sample ; then
+        info "Not specifying default configuration because a user modified configuration file already exists."
+    else
+        info "Configuring..."
+        cat <<-EOF | sudo tee /etc/shairport-sync.conf >/dev/null
 // Sample Configuration File for Shairport Sync on a Raspberry Pi using the built-in audio DAC
 general =
 {
@@ -118,11 +124,11 @@ general =
 
 alsa =
 {
-  output_device = "hw:0";
-  mixer_control_name = "PCM";
+  output_device = "hw:Headphones";
+  mixer_control_name = "Headphone";
 };
 EOF
-fi
+    fi
 }
 
 startService(){
