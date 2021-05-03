@@ -3,7 +3,7 @@
 # This installation script is based on: https://github.com/mikebrady/shairport-sync/blob/master/INSTALL.md
 # for updating, see: https://github.com/mikebrady/shairport-sync/blob/master/UPDATING.md
 
-set -eou pipefail
+set -eEou pipefail
 
 BASE_DIR=/home/pi/development
 REPO_PATH="$BASE_DIR""/shairport-sync"
@@ -16,19 +16,25 @@ usage(){
 
 while getopts "h" opt; do
     case ${opt} in
-        h) usage ;;
-      esac
+        *) usage ;;
+    esac
 done
 
 main(){
+    trap 'fail $? $LINENO' ERR
     updatePackages
     # disableWifiPowerManagement let's see if this causes problems before disabling.
     removeOldVersions
-    reboot
     cloneOrPullRepo
     build
     maybeConfigure
     startService
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    die "Error at line number: $line_no with exit code: $exit_code"
 }
 
 updatePackages(){
