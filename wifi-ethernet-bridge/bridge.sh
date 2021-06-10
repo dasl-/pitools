@@ -27,10 +27,10 @@ maybeEnableWifi(){
 
         # comment out the stanza
         sudo sed $CONFIG -i -e "s/^dtoverlay=disable-wifi *$/#dtoverlay=disable-wifi/"
-        is_restart_required=true
-    else
+
         echo 'Wifi was disabled. It has now been enabled, as required by this script.'
         echo 'Please restart and re-run this script.'
+        exit 1
     fi
 }
 maybeEnableWifi
