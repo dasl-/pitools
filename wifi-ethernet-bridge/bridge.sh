@@ -100,3 +100,5 @@ EOF
 systemctl daemon-reload
 systemctl enable parprouted
 systemctl start parprouted dhcp-helper
+
+echo 'Success! Please reboot to complete installation.'
