@@ -139,12 +139,12 @@ startService(){
 }
 
 info() {
-    echo -e "\x1b[32m$@\x1b[0m" # green stdout
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
 }
 
 die() {
     echo
-    echo -e "\x1b[31m$@\x1b[0m" >&2 # red stderr
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
     exit 1
 }
 
