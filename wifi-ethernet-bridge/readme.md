@@ -1,4 +1,6 @@
 # wifi to ethernet bridge
+
+## Overview
 Credit for this script: https://willhaley.com/blog/raspberry-pi-wifi-ethernet-bridge/
 
 Here is my [setup](https://docs.google.com/presentation/d/1NHyvYS5v8WRHY5q7YmZTV3cj14xaC5Out0w3xllHC2k/edit#slide=id.p):
@@ -26,3 +28,9 @@ Speed tests were run via `speedtest-cli`:
 ```
 
 Full results: https://docs.google.com/spreadsheets/d/1-WUZSzvB3wJ5-m9yriUo3j6dz_ukoy15ta80-tGRKEw/edit#gid=0
+
+## Installation
+```
+sudo ./bridge.sh
+sudo shutdown -r now 
+```
