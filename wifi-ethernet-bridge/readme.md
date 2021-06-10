@@ -2,7 +2,7 @@
 Credit for this script: https://willhaley.com/blog/raspberry-pi-wifi-ethernet-bridge/
 
 Here is my setup:
-![wifi to ethernet bridge setup diagram](setup.png)
+![wifi to ethernet bridge setup diagram](setup.png | width=500)
 
 I ran speed tests to see how this setup performs:
 
