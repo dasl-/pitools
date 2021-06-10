@@ -55,6 +55,7 @@ main(){
     installRmate
     clonePiTools
     changeAndSetupShell
+    setTimezone
     setHostname
     maybeEnableSpi
     changePassword
@@ -156,6 +157,10 @@ changeAndSetupShell(){
 
     curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/zsh_fix_history > "$HOME/zsh_fix_history"
     sudo chmod a+x "$HOME/zsh_fix_history"
+}
+
+setTimezone(){
+    sudo timedatectl set-timezone UTC
 }
 
 # Allows sshing and hitting the pifi webpage via "<hostname>.local"
