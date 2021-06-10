@@ -19,6 +19,22 @@ set -e
 # You should not need to update anything below this line #
 ##########################################################
 
+# see: https://raspberrypi.stackexchange.com/a/62522
+maybeEnableWifi(){
+    local CONFIG=/boot/config.txt
+    if grep -q '^dtoverlay=disable-wifi' $CONFIG ; then
+        echo 'enabling wifi...'
+
+        # comment out the stanza
+        sudo sed $CONFIG -i -e "s/^dtoverlay=disable-wifi *$/#dtoverlay=disable-wifi/"
+        is_restart_required=true
+    else
+        echo 'Wifi was disabled. It has now been enabled, as required by this script.'
+        echo 'Please restart and re-run this script.'
+    fi
+}
+maybeEnableWifi
+
 # parprouted  - Proxy ARP IP bridging daemon
 # dhcp-helper - DHCP/BOOTP relay agent
 
