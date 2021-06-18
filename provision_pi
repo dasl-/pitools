@@ -107,14 +107,8 @@ setupGit(){
 }
 
 # allows `subl path_to_file.txt` to use sublime text to edit the file on the pi
-# By default we are using a non-standard port so that we don't conflict with a friend who may
-# be hacking on the same device at the same time also using rmate. We use 52699 instead of the
-# standard 52699.
 #
-# This requires:
-# 1) aliasing the `subl` command in ~/.zshrc to use our port
-# 2) setting up ssh port forwarding for our port in the computer we are sshing from
-# 3) configuring the rsub sublime plugin to use our port in its settings (package control -> list packages -> rsub)
+# This requires setting up ssh port forwarding for our port in the computer we are sshing from.
 installRmate(){
     echo -e "\\nInstalling rmate..."
     sudo wget -O /usr/local/bin/subl https://raw.githubusercontent.com/aurora/rmate/master/rmate
