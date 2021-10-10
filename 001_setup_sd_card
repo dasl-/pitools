@@ -42,6 +42,8 @@ def imageSdCard():
     command(f'diskutil unmountDisk /dev/disk{args.disk_num}')
     command(f'sudo dd bs=1m if={args.disk_image} of=/dev/rdisk{args.disk_num}; sync')
 
+    time.sleep(5)
+
     # Wait a few seconds for args.device_path to remount again (I guess this takes some time?).
     # Need it to be remounted before writing wifi and ssh files.
     time_limit = time.time() + 10
@@ -52,6 +54,9 @@ def imageSdCard():
         if time.time() > time_limit:
             print(f"Failed to remount {args.device_path}.")
             sys.exit(1)
+
+    # prevent weirdness where subsequent writes are flakey?
+    time.sleep(5)
 
 # https://raspberrypi.stackexchange.com/a/57023
 def setupWifi():
@@ -64,6 +69,25 @@ def setupWifi():
 def setupSsh():
     print("Enabling ssh...")
     command(f'sudo touch {args.device_path}/ssh')
+
+def validate():
+    try:
+        command(f'sudo ls -l {args.device_path}/cmdline.txt')
+    except Exception:
+        print("ERROR: failed to validate raspbian install")
+        exit(1)
+
+    try:
+        command(f'sudo ls -l {args.device_path}/ssh')
+    except Exception:
+        print("ERROR: failed to validate ssh setup")
+        exit(1)
+
+    try:
+        command(f'sudo ls -l {args.device_path}/wpa_supplicant.conf')
+    except Exception:
+        print("ERROR: failed to validate wifi setup")
+        exit(1)
 
 def finish():
     print("Ejecting SD card...")
@@ -81,8 +105,10 @@ def command(command):
         .check_output(command, shell = True, executable = BASH_EXECUTABLE)
         .decode("utf-8"))
 
+
 args = parseArgs()
 imageSdCard()
 setupWifi()
 setupSsh()
+validate()
 finish()
