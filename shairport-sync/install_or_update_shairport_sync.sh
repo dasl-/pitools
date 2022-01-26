@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 
-# This installation script is based on: https://github.com/mikebrady/shairport-sync/blob/master/INSTALL.md
-# for updating, see: https://github.com/mikebrady/shairport-sync/blob/master/UPDATING.md
+# This installation script is based on: https://github.com/mikebrady/shairport-sync/blob/development/BUILDFORAP2.md
+# See also:
+# https://github.com/mikebrady/shairport-sync/blob/development/RELEASENOTES-DEVELOPMENT.md
+# https://github.com/mikebrady/shairport-sync/blob/development/AIRPLAY2.md
 
-set -eEou pipefail
+set -euo pipefail
 
 BASE_DIR=/home/pi
-REPO_PATH="$BASE_DIR""/shairport-sync"
+
+SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
+SHAIRPORT_SYNC_CLONE_URL=https://github.com/mikebrady/shairport-sync.git
+
+NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
+NQPTP_CLONE_URL=https://github.com/mikebrady/nqptp.git
 
 usage(){
     echo "Usage: $(basename "${0}")"
@@ -20,7 +27,8 @@ while getopts "d:" opt; do
     case ${opt} in
         d)
             BASE_DIR=${OPTARG%/}  # remove trailing slash if present
-            REPO_PATH="$BASE_DIR""/shairport-sync"
+            SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
+            NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
             ;;
         *) usage ;;
     esac
@@ -31,10 +39,17 @@ main(){
     updatePackages
     disableWifiPowerManagement
     removeOldVersions
-    cloneOrPullRepo
-    build
-    maybeConfigure
-    startService
+
+    # nqptp
+    cloneOrPullRepo "$NQPTP_REPO_PATH" "$NQPTP_CLONE_URL"
+    buildNqptp
+    startNqptpService
+
+    # shairport-sync
+    cloneOrPullRepo "$SHAIRPORT_SYNC_REPO_PATH" "$SHAIRPORT_SYNC_CLONE_URL"
+    buildShairportSync
+    maybeConfigureShairportSync
+    startShairportSyncService
 }
 
 fail(){
@@ -46,21 +61,31 @@ fail(){
 updatePackages(){
     info "Updating and installing packages..."
     sudo apt update
-    sudo apt -y install build-essential git xmltoman autoconf automake libtool \
-        libpopt-dev libconfig-dev libasound2-dev avahi-daemon libavahi-client-dev libssl-dev libsoxr-dev
+    sudo apt -y install --no-install-recommends build-essential git xxd xmltoman autoconf automake libtool \
+        libpopt-dev libconfig-dev libasound2-dev avahi-daemon libavahi-client-dev libssl-dev libsoxr-dev \
+        libplist-dev libsodium-dev libavutil-dev libavcodec-dev libavformat-dev uuid-dev libgcrypt-dev
+
     sudo apt -y full-upgrade
 }
 
 # https://github.com/raspberrypi/linux/issues/2522#issuecomment-692559920
+# https://forums.raspberrypi.com/viewtopic.php?p=1764517#p1764517
 disableWifiPowerManagement(){
-    info "Disabling wifi power management..."
+    if ! grep -q '^iwconfig wlan0 power off' /etc/rc.local ; then
+        info "Disabling wifi power management..."
 
-    # disable it
-    sudo iwconfig wlan0 power off
+        # disable it
+        sudo iwconfig wlan0 power off
 
-    # ensure it stays disabled after reboots
-    echo "iwconfig wlan0 power off" | sudo tee -a /etc/rc.local >/dev/null 2>&1
-    echo "exit 0" | sudo tee -a /etc/rc.local >/dev/null 2>&1
+        # ensure it stays disabled after reboots
+        if [ "$(grep --count '^exit 0$' /etc/rc.local)" -ne 1 ] ; then
+           die "Unexpected contents in /etc/rc.local"
+        fi
+        sudo sed /etc/rc.local -i -e "s/^exit 0$/iwconfig wlan0 power off/"
+        echo "exit 0" | sudo tee -a /etc/rc.local >/dev/null 2>&1
+    else
+        info "Wifi power management already disabled"
+    fi
 }
 
 removeOldVersions(){
@@ -86,29 +111,49 @@ removeOldVersions(){
 }
 
 cloneOrPullRepo(){
+    local repo_path = "$1"
+    local clone_url = "$2"
     mkdir -p "$BASE_DIR"
-    if [ ! -d "$REPO_PATH" ]
+    if [ ! -d "$repo_path" ]
     then
-        info "Cloning repo..."
-        git clone https://github.com/mikebrady/shairport-sync.git "$REPO_PATH"
+        info "Cloning repo: $clone_url into $repo_path ..."
+        git clone "$clone_url" "$repo_path"
     else
-        info "Pulling repo..."
-        git -C "$REPO_PATH" pull
+        info "Pulling repo in $repo_path ..."
+        git -C "$repo_path" pull
     fi
 }
 
-build(){
-    info "Building... This may take a while..."
-    pushd "$REPO_PATH"
+buildNqptp(){
+    info "Building nqptp..."
+    pushd "$NQPTP_REPO_PATH"
     autoreconf -fi
-    ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd
+    ./configure --with-systemd-startup
     make
     sudo make install
     popd
 }
 
+startNqptpService(){
+    info "Starting nqptp service"
+    sudo systemctl enable nqptp
+    sudo systemctl daemon-reload
+    sudo systemctl restart nqptp
+}
+
+buildShairportSync(){
+    info "Building shairport-sync... This may take a while..."
+    pushd "$SHAIRPORT_SYNC_REPO_PATH"
+    git checkout development
+    autoreconf -fi
+    ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd --with-airplay-2
+    make -j
+    sudo make install
+    popd
+}
+
 # Only add configuration file if it is not already present
-maybeConfigure(){
+maybeConfigureShairportSync(){
     # If the shairport-sync.conf file matches the sample file, assume it has not been modified and is
     # safe to overwrite.
     if diff -qs /etc/shairport-sync.conf /etc/shairport-sync.conf.sample ; then
@@ -131,8 +176,8 @@ EOF
     fi
 }
 
-startService(){
-    info "Starting service..."
+startShairportSyncService(){
+    info "Starting shairport-sync service..."
     sudo systemctl enable shairport-sync
     sudo systemctl daemon-reload
     sudo systemctl restart shairport-sync
