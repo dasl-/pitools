@@ -104,6 +104,8 @@ setupGit(){
         echo -e "\\nSetting git user name to $GIT_USER_NAME..."
         git config --global user.name "$GIT_USER_NAME"
     fi
+
+    git config --global pull.rebase true
 }
 
 # allows `subl path_to_file.txt` to use sublime text to edit the file on the pi
