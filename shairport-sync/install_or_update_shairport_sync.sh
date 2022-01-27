@@ -16,7 +16,7 @@ NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
 NQPTP_CLONE_URL=https://github.com/mikebrady/nqptp.git
 
 usage(){
-    echo "Usage: $(basename "${0}")"
+    echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>]"
     echo "Installs or updates shairport-sync on a raspberry pi."
     echo "  -d BASE_DIRECTORY : Base directory in which to clone shairport_sync. Trailing slash optional."
     echo "                      Defaults to $BASE_DIR."
@@ -42,10 +42,12 @@ main(){
     buildShairportSync
     maybeConfigureShairportSync
     startShairportSyncService
+
+    info "Success!"
 }
 
 parseOpts(){
-    while getopts "d:" opt; do
+    while getopts "d:h" opt; do
         case ${opt} in
             d)
                 BASE_DIR=${OPTARG%/}  # remove trailing slash if present
@@ -88,7 +90,7 @@ disableWifiPowerManagement(){
 }
 
 removeOldVersions(){
-    info "Removing old versions (if found)..."
+    info "Removing old versions of shairport-sync (if found)..."
     while [ "$(which shairport-sync)" ]
     do
         sudo rm "$(which shairport-sync)"
@@ -102,16 +104,17 @@ removeOldVersions(){
         /etc/dbus-1/system.d/shairport-sync-mpris.conf \
         /usr/lib/systemd/system/shairport-sync.service
 
-    # these might exit non-zero if the service is not yet installed
-    sudo systemctl stop shairport-sync.service || true
-    sudo systemctl disable shairport-sync.service || true
-    sudo systemctl daemon-reload || true
-    sudo systemctl reset-failed || true
+    # some of these might exit non-zero if the service is not yet installed, hence the redirecting
+    # stderr to /dev/null and ORing with `true`
+    sudo systemctl stop shairport-sync.service 2>/dev/null || true
+    sudo systemctl disable shairport-sync.service 2>/dev/null || true
+    sudo systemctl daemon-reload
+    sudo systemctl reset-failed
 }
 
 cloneOrPullRepo(){
-    local repo_path = "$1"
-    local clone_url = "$2"
+    local repo_path="$1"
+    local clone_url="$2"
     mkdir -p "$BASE_DIR"
     if [ ! -d "$repo_path" ]
     then
@@ -156,9 +159,7 @@ maybeConfigureShairportSync(){
     # If the shairport-sync.conf file matches the sample file, assume it has not been modified and is
     # safe to overwrite.
     if diff -qs /etc/shairport-sync.conf /etc/shairport-sync.conf.sample ; then
-        info "Not specifying default configuration because a user modified configuration file already exists."
-    else
-        info "Configuring..."
+        info "Configuring shairport-sync..."
         cat <<-EOF | sudo tee /etc/shairport-sync.conf >/dev/null
 // Sample Configuration File for Shairport Sync on a Raspberry Pi using the built-in audio DAC
 general =
@@ -172,6 +173,8 @@ alsa =
   mixer_control_name = "Headphone";
 };
 EOF
+    else
+        info "Not specifying default configuration because a user modified configuration file already exists."
     fi
 }
 
