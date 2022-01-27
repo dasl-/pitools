@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eou pipefail
+set -euo pipefail
 
 OLD_PASSWORD='raspberry'
 NEW_PASSWORD="$OLD_PASSWORD"
@@ -25,29 +25,10 @@ usage(){
     exit 1
 }
 
-while getopts ":p:h:o:i:e:u:sr" opt; do
-    case ${opt} in
-        p) NEW_PASSWORD=${OPTARG} ;;
-        h)
-            if [[ "$OPTARG" =~ ^[a-z]([a-z0-9-]*[a-z0-9])?$ ]]; then
-                HOSTNAME=${OPTARG}
-            else
-                echo "Invalid hostname."
-                usage
-            fi
-            ;;
-        o) OLD_PASSWORD=${OPTARG} ;;
-        i) PATH_TO_SSH_KEY=${OPTARG} ;;
-        e) GIT_USER_EMAIL=${OPTARG} ;;
-        u) GIT_USER_NAME=${OPTARG} ;;
-        s) ENABLE_SPI=true ;;
-        r) SHOULD_DELETE_SELF=true ;;
-        *) usage ;;
-      esac
-done
-
 main(){
-    validateOpts
+    trap 'fail $? $LINENO' ERR
+
+    parseOpts "$@"
 
     setupSshKey
     updateAndInstallPackages
@@ -61,9 +42,9 @@ main(){
     changePassword
     maybeDeleteSelf
 
-    echo -e "\\nRestarting..."
-    echo -e "Pi will be available via:\\n"
-    echo -e "  ssh pi@$HOSTNAME.local\\n"
+    info "\\nRestarting..."
+    info "Pi will be available via:\\n"
+    info "  ssh pi@$HOSTNAME.local\\n"
 
     # redirect "sudo: unable to resolve host raspberrypi: Name or service not known" to /dev/null
     # I think sudo has weirdness immediately after a hostname change. Hide this output to avoid
@@ -71,21 +52,40 @@ main(){
     sudo shutdown -r now 2>/dev/null
 }
 
-validateOpts(){
-    :
+parseOpts(){
+    while getopts ":p:h:o:i:e:u:sr" opt; do
+        case ${opt} in
+            p) NEW_PASSWORD=${OPTARG} ;;
+            h)
+                if [[ "$OPTARG" =~ ^[a-z]([a-z0-9-]*[a-z0-9])?$ ]]; then
+                    HOSTNAME=${OPTARG}
+                else
+                    echo "Invalid hostname."
+                    usage
+                fi
+                ;;
+            o) OLD_PASSWORD=${OPTARG} ;;
+            i) PATH_TO_SSH_KEY=${OPTARG} ;;
+            e) GIT_USER_EMAIL=${OPTARG} ;;
+            u) GIT_USER_NAME=${OPTARG} ;;
+            s) ENABLE_SPI=true ;;
+            r) SHOULD_DELETE_SELF=true ;;
+            *) usage ;;
+          esac
+    done
 }
 
 setupSshKey(){
-    echo -e "\\nSetting up ssh key... If you still need to add this key to your github account, see: "
-    echo "https://docs.github.com/en/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account"
-    echo "https://github.com/settings/keys"
+    info -e "\\nSetting up ssh key... If you still need to add this key to your github account, see: "
+    info "https://docs.github.com/en/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account"
+    info "https://github.com/settings/keys"
     eval "$(ssh-agent -s)"
     ssh-add "$PATH_TO_SSH_KEY"
     sleep 1 # ssh setup is randomly slow to complete. Wait a bit to avoid cloberring subsequent output lines.
 }
 
 updateAndInstallPackages(){
-    echo -e "\\nUpdating and installing packages..."
+    info "\\nUpdating and installing packages..."
     sudo apt update
     sudo apt -y install git mlocate vim zsh zsh-syntax-highlighting
     sudo apt -y full-upgrade
@@ -93,15 +93,15 @@ updateAndInstallPackages(){
 
 # use diff-highlight as diff tool / pager
 setupGit(){
-    echo -e "\\nSetting up git..."
+    info "\\nSetting up git..."
     sudo make -C /usr/share/doc/git/contrib/diff-highlight
     git config --global core.pager '/usr/share/doc/git/contrib/diff-highlight/diff-highlight | less'
     if [[ -n ${GIT_USER_EMAIL} ]]; then
-        echo -e "\\nSetting git user email to $GIT_USER_EMAIL..."
+        info "\\nSetting git user email to $GIT_USER_EMAIL..."
         git config --global user.email "$GIT_USER_EMAIL"
     fi
     if [[ -n ${GIT_USER_NAME} ]]; then
-        echo -e "\\nSetting git user name to $GIT_USER_NAME..."
+        info "\\nSetting git user name to $GIT_USER_NAME..."
         git config --global user.name "$GIT_USER_NAME"
     fi
 
@@ -112,21 +112,21 @@ setupGit(){
 #
 # This requires setting up ssh port forwarding for our port in the computer we are sshing from.
 installRmate(){
-    echo -e "\\nInstalling rmate..."
+    info "\\nInstalling rmate..."
     sudo wget -O /usr/local/bin/subl https://raw.githubusercontent.com/aurora/rmate/master/rmate
     sudo chmod a+x /usr/local/bin/subl
 }
 
-# Useful for the wifi_config script, shairplay-sync installation, etc
+# Useful for the wifi_config script, shairport-sync installation, etc
 clonePiTools(){
-    echo -e "\\nInstalling pitools..."
+    info "\\nInstalling pitools..."
     dev_dir="$HOME/development"
     mkdir -p "$dev_dir"
     git -C "$dev_dir" clone https://github.com/dasl-/pitools.git
 }
 
 changeAndSetupShell(){
-    echo -e "\\nSetting up zsh shell..."
+    info "\\nSetting up zsh shell..."
 
     # change default shell
     echo "$OLD_PASSWORD" | chsh -s /usr/bin/zsh
@@ -162,21 +162,21 @@ setTimezone(){
 # Allows sshing and hitting the pifi webpage via "<hostname>.local"
 # See: https://www.raspberrypi.org/documentation/remote-access/ip-address.md "Resolving raspberrypi.local with mDNS"
 setHostname(){
-    echo -e "\\nSetting hostname to: $HOSTNAME"
+    info "\\nSetting hostname to: $HOSTNAME"
     echo "$HOSTNAME" | sudo tee /etc/hostname >/dev/null 2>&1
     sudo sed -i -E 's/(127\.0\.1\.1\s+)[^ ]+/\1'"$HOSTNAME"'/g' /etc/hosts
 }
 
 maybeEnableSpi(){
     if [[ ${ENABLE_SPI} == "true" ]]; then
-        echo -e "\\nEnabling SPI..."
+        info "\\nEnabling SPI..."
         # https://raspberrypi.stackexchange.com/a/96679
         sudo raspi-config nonint do_spi 0
     fi
 }
 
 changePassword(){
-    echo -e "\\nChanging password to: $NEW_PASSWORD"
+    info "\\nChanging password to: $NEW_PASSWORD"
     echo -e "$OLD_PASSWORD\n$NEW_PASSWORD\n$NEW_PASSWORD" | passwd
     sleep 1 # password setup is randomly slow to complete. Wait a bit to avoid cloberring subsequent output lines.
 }
@@ -186,9 +186,25 @@ maybeDeleteSelf() {
         SCRIPT_DIR="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
         SCRIPT_NAME=$(basename -- "${BASH_SOURCE[0]}")
         SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_NAME"
-        echo -e "\\nDeleting self ( $SCRIPT_PATH )..."
+        info "\\nDeleting self ( $SCRIPT_PATH )..."
         rm "$SCRIPT_PATH"
     fi
 }
 
-main
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    die "Error at line number: $line_no with exit code: $exit_code"
+}
+
+info() {
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+die() {
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"

@@ -7,24 +7,26 @@ import subprocess
 import pathlib
 import time
 
-BASH_EXECUTABLE='/bin/bash'
+BASH_EXECUTABLE = '/bin/bash'
 
 def parseArgs():
-    parser = argparse.ArgumentParser(description="""
-        Setup new sd card for raspberry pi. Must be run as sudo. Images disk, sets up wifi, sets up ssh. Run from laptop.
-        """)
+    parser = argparse.ArgumentParser(
+        description=("Setup new sd card for raspberry pi. Must be run as sudo. Images disk, sets up wifi, sets up " +
+            "ssh. Run from laptop."),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument('--disk-num', dest='disk_num', action='store', required = True,
         help='Disk number via `diskutil list`. This disk will be overwritten, so don\'t get this wrong.')
     parser.add_argument('--disk-image', dest='disk_image', action='store', required = True,
         help='Path to disk image. Download Raspberry Pi OS Lite image from https://www.raspberrypi.org/software/operating-systems/')
     parser.add_argument('--device-path', dest='device_path', action='store', default='/Volumes/boot',
-        help='Mounted volume path after SD card has been imaged. Default: %(default)s')
+        help='Mounted volume path after SD card has been imaged.')
     parser.add_argument('--wifi-network-name', dest='wifi_network_name', action='store', required = True,
         help='Name of the network to join')
     parser.add_argument('--wifi-password', dest='wifi_password', action='store', required = True,
         help='Password of the network to join')
     parser.add_argument('--wifi-country-code', dest='wifi_country_code', action='store', default='US',
-        help='Your ISO-3166-1 two-letter country code. Default: %(default)s. See: ' +
+        help='Your ISO-3166-1 two-letter country code. See: ' +
         'https://www.iso.org/obp/ui/#search')
 
     if os.getuid() != 0:

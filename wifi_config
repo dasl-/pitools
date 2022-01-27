@@ -4,17 +4,20 @@ import argparse
 import os
 
 def parseArgs():
-    parser = argparse.ArgumentParser(description='Configure /boot/wpa_supplicant.conf ' +
-        'with a given network name and password such that the pifi will automatically ' +
-        'attempt to join that network upon its next reboot. Can be run from laptop or ' +
-        'pi. If run from laptop, must specify --device-path. See: ' +
-        'https://raspberrypi.stackexchange.com/a/57023')
+    parser = argparse.ArgumentParser(
+        description=('Configure /boot/wpa_supplicant.conf ' +
+            'with a given network name and password such that the pifi will automatically ' +
+            'attempt to join that network upon its next reboot. Can be run from laptop or ' +
+            'pi. If run from laptop, must specify --device-path. See: ' +
+            'https://raspberrypi.stackexchange.com/a/57023'),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument('--wifi-network-name', dest='wifi_network_name', action='store', required = True,
         help='Name of the network to join')
     parser.add_argument('--wifi-password', dest='wifi_password', action='store', required = True,
         help='Password of the network to join')
     parser.add_argument('--wifi-country-code', dest='wifi_country_code', action='store', default='US',
-        help='Your ISO-3166-1 two-letter country code. Default: %(default)s. See: ' +
+        help='Your ISO-3166-1 two-letter country code. See: ' +
         'https://www.iso.org/obp/ui/#search')
     parser.add_argument('--device-path', dest='device_path', action='store', default='/boot',
         help='Mounted volume path after SD card has been imaged. Only applicable / useful if you are running ' +

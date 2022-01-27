@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eou pipefail
+set -euo pipefail
 
 SSH_KEY_TO_AUTHORIZE="$HOME/.ssh/id_ed25519.pub"
 SSH_KEY_TO_ADD="$HOME/standard_raspberry_pi_key/id_ed25519.pub"
@@ -38,44 +38,44 @@ usage(){
     exit 1
 }
 
-while getopts ":i:j:h:g:p:o:e:u:s" opt; do
-    case ${opt} in
-        i) SSH_KEY_TO_AUTHORIZE=${OPTARG} ;;
-        j) SSH_KEY_TO_ADD=${OPTARG} ;;
-        h)
-            if [[ "$OPTARG" =~ ^[a-z]([a-z0-9-]*[a-z0-9])?$ ]]; then
-                NEW_HOSTNAME=${OPTARG}
-            else
-                echo "Invalid hostname."
-                usage
-            fi
-            ;;
-        g) OLD_HOSTNAME=${OPTARG} ;;
-        p) NEW_PASSWORD=${OPTARG} ;;
-        o) OLD_PASSWORD=${OPTARG} ;;
-        e) GIT_USER_EMAIL=${OPTARG} ;;
-        u) GIT_USER_NAME=${OPTARG} ;;
-        s) ENABLE_SPI=true ;;
-        *) usage ;;
-      esac
-done
-
 main(){
-    validateOpts
+    trap 'fail $? $LINENO' ERR
+
+    parseOpts "$@"
 
     setupSsh
     provisionPi
 
-    echo -e "\\nDone provisioning raspberry pi!"
+    info -e "\\nDone provisioning raspberry pi!"
 }
 
-validateOpts(){
-    :
+parseOpts(){
+    while getopts ":i:j:h:g:p:o:e:u:s" opt; do
+        case ${opt} in
+            i) SSH_KEY_TO_AUTHORIZE=${OPTARG} ;;
+            j) SSH_KEY_TO_ADD=${OPTARG} ;;
+            h)
+                if [[ "$OPTARG" =~ ^[a-z]([a-z0-9-]*[a-z0-9])?$ ]]; then
+                    NEW_HOSTNAME=${OPTARG}
+                else
+                    echo "Invalid hostname."
+                    usage
+                fi
+                ;;
+            g) OLD_HOSTNAME=${OPTARG} ;;
+            p) NEW_PASSWORD=${OPTARG} ;;
+            o) OLD_PASSWORD=${OPTARG} ;;
+            e) GIT_USER_EMAIL=${OPTARG} ;;
+            u) GIT_USER_NAME=${OPTARG} ;;
+            s) ENABLE_SPI=true ;;
+            *) usage ;;
+          esac
+    done
 }
 
 setupSsh(){
-    echo -e "\\nAuthorizing passwordless ssh with $SSH_KEY_TO_AUTHORIZE..."
-    echo -e "When asked for a password, please enter the raspberry pi's password (probably: '$OLD_PASSWORD').\\n"
+    info "\\nAuthorizing passwordless ssh with $SSH_KEY_TO_AUTHORIZE..."
+    info "When asked for a password, please enter the raspberry pi's password (probably: '$OLD_PASSWORD').\\n"
     eval "ssh-copy-id $SSH_OPTS -i $SSH_KEY_TO_AUTHORIZE pi@$OLD_HOSTNAME"
 
     if [[ ${SSH_KEY_TO_ADD} == *.pub ]]; then
@@ -88,12 +88,12 @@ setupSsh(){
     PRIV_SSH_KEY_FILE=$(basename "$PRIV_SSH_KEY_TO_ADD")
 
     destination="pi@$OLD_HOSTNAME:~/.ssh"
-    echo -e "\\nCopying $PUB_SSH_KEY_TO_ADD and $PRIV_SSH_KEY_TO_ADD to $destination..."
+    info -e "\\nCopying $PUB_SSH_KEY_TO_ADD and $PRIV_SSH_KEY_TO_ADD to $destination..."
     eval "scp $SSH_OPTS $PUB_SSH_KEY_TO_ADD $PRIV_SSH_KEY_TO_ADD $destination"
 }
 
 provisionPi(){
-    echo -e "\\nProvisioning raspberry pi..."
+    info -e "\\nProvisioning raspberry pi..."
 
     provision_cmd="ssh $SSH_OPTS pi@$OLD_HOSTNAME -- "
     provision_cmd+="'curl https://raw.githubusercontent.com/dasl-/pitools/main/provision_pi > provision_pi && "
@@ -103,8 +103,24 @@ provisionPi(){
         provision_cmd+="-s "
     fi
     provision_cmd+="'"
-    echo "Running: $provision_cmd"
+    info "Running: $provision_cmd"
     eval "$provision_cmd"
 }
 
-main
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    die "Error at line number: $line_no with exit code: $exit_code"
+}
+
+info() {
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+die() {
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"
