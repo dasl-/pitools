@@ -76,7 +76,7 @@ parseOpts(){
 }
 
 setupSshKey(){
-    info -e "\\nSetting up ssh key... If you still need to add this key to your github account, see: "
+    info "\\nSetting up ssh key... If you still need to add this key to your github account, see: "
     info "https://docs.github.com/en/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account"
     info "https://github.com/settings/keys"
     eval "$(ssh-agent -s)"

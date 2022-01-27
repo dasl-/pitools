@@ -46,7 +46,7 @@ main(){
     setupSsh
     provisionPi
 
-    info -e "\\nDone provisioning raspberry pi!"
+    info "\\nDone provisioning raspberry pi!"
 }
 
 parseOpts(){
@@ -88,12 +88,12 @@ setupSsh(){
     PRIV_SSH_KEY_FILE=$(basename "$PRIV_SSH_KEY_TO_ADD")
 
     destination="pi@$OLD_HOSTNAME:~/.ssh"
-    info -e "\\nCopying $PUB_SSH_KEY_TO_ADD and $PRIV_SSH_KEY_TO_ADD to $destination..."
+    info "\\nCopying $PUB_SSH_KEY_TO_ADD and $PRIV_SSH_KEY_TO_ADD to $destination..."
     eval "scp $SSH_OPTS $PUB_SSH_KEY_TO_ADD $PRIV_SSH_KEY_TO_ADD $destination"
 }
 
 provisionPi(){
-    info -e "\\nProvisioning raspberry pi..."
+    info "\\nProvisioning raspberry pi..."
 
     provision_cmd="ssh $SSH_OPTS pi@$OLD_HOSTNAME -- "
     provision_cmd+="'curl https://raw.githubusercontent.com/dasl-/pitools/main/provision_pi > provision_pi && "
