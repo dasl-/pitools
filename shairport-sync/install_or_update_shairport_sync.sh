@@ -23,19 +23,11 @@ usage(){
     exit 1
 }
 
-while getopts "d:" opt; do
-    case ${opt} in
-        d)
-            BASE_DIR=${OPTARG%/}  # remove trailing slash if present
-            SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
-            NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
-            ;;
-        *) usage ;;
-    esac
-done
-
 main(){
     trap 'fail $? $LINENO' ERR
+
+    parseOpts "$@"
+
     updatePackages
     disableWifiPowerManagement
     removeOldVersions
@@ -52,10 +44,17 @@ main(){
     startShairportSyncService
 }
 
-fail(){
-    local exit_code=$1
-    local line_no=$2
-    die "Error at line number: $line_no with exit code: $exit_code"
+parseOpts(){
+    while getopts "d:" opt; do
+        case ${opt} in
+            d)
+                BASE_DIR=${OPTARG%/}  # remove trailing slash if present
+                SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
+                NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
+                ;;
+            *) usage ;;
+        esac
+    done
 }
 
 updatePackages(){
@@ -183,6 +182,12 @@ startShairportSyncService(){
     sudo systemctl restart shairport-sync
 }
 
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    die "Error at line number: $line_no with exit code: $exit_code"
+}
+
 info() {
     echo -e "\x1b[32m$*\x1b[0m" # green stdout
 }
@@ -193,4 +198,4 @@ die() {
     exit 1
 }
 
-main
+main "$@"
