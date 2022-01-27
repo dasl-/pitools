@@ -8,6 +8,7 @@
 set -euo pipefail
 
 BASE_DIR=/home/pi
+NAME=''
 
 SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
 SHAIRPORT_SYNC_CLONE_URL=https://github.com/mikebrady/shairport-sync.git
@@ -16,10 +17,12 @@ NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
 NQPTP_CLONE_URL=https://github.com/mikebrady/nqptp.git
 
 usage(){
-    echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>]"
+    echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-n <NAME>]"
     echo "Installs or updates shairport-sync on a raspberry pi."
     echo "  -d BASE_DIRECTORY : Base directory in which to clone shairport_sync. Trailing slash optional."
     echo "                      Defaults to $BASE_DIR."
+    echo "  -n NAME           : The name the service will advertise to iTunes."
+    echo "                      Use %h for the hostname and %H for the Hostname. Defaults to %H."
     exit 1
 }
 
@@ -47,13 +50,14 @@ main(){
 }
 
 parseOpts(){
-    while getopts "d:h" opt; do
+    while getopts "d:n:h" opt; do
         case ${opt} in
             d)
                 BASE_DIR=${OPTARG%/}  # remove trailing slash if present
                 SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
                 NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
                 ;;
+            n) NAME=${OPTARG} ;;
             *) usage ;;
         esac
     done
@@ -160,11 +164,15 @@ maybeConfigureShairportSync(){
     # safe to overwrite.
     if diff -qs /etc/shairport-sync.conf /etc/shairport-sync.conf.sample ; then
         info "Configuring shairport-sync..."
+        name_string=''
+        if [ -n "${NAME}" ]; then
+            name_string='name = "'"$NAME"'";'
+        fi
         cat <<-EOF | sudo tee /etc/shairport-sync.conf >/dev/null
-// Sample Configuration File for Shairport Sync on a Raspberry Pi using the built-in audio DAC
 general =
 {
   volume_range_db = 60;
+  $name_string
 };
 
 alsa =
