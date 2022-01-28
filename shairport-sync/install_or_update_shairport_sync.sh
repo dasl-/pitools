@@ -152,7 +152,7 @@ buildShairportSync(){
     pushd "$SHAIRPORT_SYNC_REPO_PATH"
     git checkout development
     autoreconf -fi
-    ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd --with-airplay-2
+    ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd --with-airplay-2 --with-dbus-interface
     make -j
     sudo make install
     popd
