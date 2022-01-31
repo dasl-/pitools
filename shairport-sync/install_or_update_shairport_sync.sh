@@ -159,6 +159,10 @@ buildShairportSync(){
 }
 
 # Only add configuration file if it is not already present
+# See sample raspberry pi config file:
+# https://github.com/mikebrady/shairport-sync/blob/development/BUILDFORAP2.md#configure
+#
+# My deviation in volume settings from the sample config file is intentional :)
 maybeConfigureShairportSync(){
     # If the shairport-sync.conf file matches the sample file, assume it has not been modified and is
     # safe to overwrite. Same if the config file does not exist.
