@@ -161,9 +161,9 @@ buildShairportSync(){
 # Only add configuration file if it is not already present
 maybeConfigureShairportSync(){
     # If the shairport-sync.conf file matches the sample file, assume it has not been modified and is
-    # safe to overwrite.
+    # safe to overwrite. Same if the config file does not exist.
     local config_file_path='/etc/shairport-sync.conf'
-    if diff -qs $config_file_path /etc/shairport-sync.conf.sample || [ ! -f /tmp/foo.txt ] ; then
+    if diff -qs $config_file_path /etc/shairport-sync.conf.sample || [ ! -f $config_file_path ] ; then
         info "Configuring shairport-sync..."
         name_string=''
         if [ -n "${NAME}" ]; then
