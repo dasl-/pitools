@@ -162,16 +162,20 @@ buildShairportSync(){
 maybeConfigureShairportSync(){
     # If the shairport-sync.conf file matches the sample file, assume it has not been modified and is
     # safe to overwrite.
-    if diff -qs /etc/shairport-sync.conf /etc/shairport-sync.conf.sample ; then
+    local config_file_path='/etc/shairport-sync.conf'
+    if diff -qs $config_file_path /etc/shairport-sync.conf.sample || [ ! -f /tmp/foo.txt ] ; then
         info "Configuring shairport-sync..."
         name_string=''
         if [ -n "${NAME}" ]; then
             name_string='name = "'"$NAME"'";'
         fi
-        cat <<-EOF | sudo tee /etc/shairport-sync.conf >/dev/null
+        cat <<-EOF | sudo tee $config_file_path >/dev/null
 general =
 {
-  volume_range_db = 60;
+  // More info about volume on pis:
+  // https://github.com/dasl-/piwall2/blob/d357c3766979d473f8135448ccf36935a4fa608a/piwall2/volumecontroller.py#L22
+  volume_range_db = 40; // make volume line up approximately with my own logarithmic volume algorithm on pis
+  volume_max_db = 0.0; // prevent clipping on raspberry pis
   $name_string
 };
 
