@@ -9,6 +9,7 @@ set -euo pipefail
 
 BASE_DIR=/home/pi
 NAME=''
+CONFIG=/boot/config.txt
 
 SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
 SHAIRPORT_SYNC_CLONE_URL=https://github.com/mikebrady/shairport-sync.git
@@ -77,6 +78,13 @@ updatePackages(){
 # https://github.com/raspberrypi/linux/issues/2522#issuecomment-692559920
 # https://forums.raspberrypi.com/viewtopic.php?p=1764517#p1764517
 disableWifiPowerManagement(){
+    if grep -q '^dtoverlay=disable-wifi' $CONFIG ; then
+        # Without this check, we'd get an error:
+        #   Error for wireless request "Set Power Management" (8B2C) :
+        #   SET failed on device wlan0 ; No such device.
+        info 'wifi is disabled; skipping disabling of wifi power management...'
+        return
+    fi
     if ! grep -q '^iwconfig wlan0 power off' /etc/rc.local ; then
         info "Disabling wifi power management..."
 
