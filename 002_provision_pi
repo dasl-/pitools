@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -euo pipefail -o errtrace
 
 SSH_KEY_TO_AUTHORIZE="$HOME/.ssh/id_ed25519.pub"
 SSH_KEY_TO_ADD="$HOME/standard_raspberry_pi_key/id_ed25519.pub"

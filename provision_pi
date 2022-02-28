@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -euo pipefail -o errtrace
 
 OLD_PASSWORD='raspberry'
 NEW_PASSWORD="$OLD_PASSWORD"

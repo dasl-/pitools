@@ -5,7 +5,7 @@
 # https://github.com/mikebrady/shairport-sync/blob/development/RELEASENOTES-DEVELOPMENT.md
 # https://github.com/mikebrady/shairport-sync/blob/development/AIRPLAY2.md
 
-set -euo pipefail
+set -euo pipefail -o errtrace
 
 BASE_DIR=/home/pi
 NAME=''
