@@ -37,6 +37,7 @@ main(){
     installRmate
     clonePiTools
     changeAndSetupShell
+    installReadlineHack
     setTimezone
     setHostname
     maybeEnableSpi
@@ -190,6 +191,23 @@ changeAndSetupShell(){
 
     curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/zsh_fix_history > "$HOME/zsh_fix_history"
     sudo chmod a+x "$HOME/zsh_fix_history"
+}
+
+# Enable fzf history search in any application that uses libreadline.
+# See: https://github.com/lincheney/fzf-tab-completion#readline
+installReadlineHack(){
+    info "\\nInstalling readline hack..."
+    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.inputrc > "$HOME/.inputrc"
+    mkdir -p ~/readline-hack
+    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_function.so > "$HOME/readline-hack/librl_custom_function.so"
+    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_isearch.so > "$HOME/readline-hack/librl_custom_isearch.so"
+
+    mkdir -p ~/bin
+    curl --silent https://raw.githubusercontent.com/dasl-/rl_custom_isearch/master/bin/rl_custom_isearch > "$HOME/bin/rl_custom_isearch"
+    chmod a+x "$HOME/bin/rl_custom_isearch"
+
+    # readline-hack workaround: https://gist.github.com/dasl-/8530db0b95a8793756cb5ce671651acf
+    sudo ln -s /usr/lib/arm-linux-gnueabihf/libreadline.so.8.1 /usr/lib/libreadline.so
 }
 
 setTimezone(){

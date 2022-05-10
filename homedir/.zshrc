@@ -97,6 +97,12 @@ test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell
 # https://github.com/Aloxaf/fzf-tab#install
 source "$HOME/.config/zsh/fzf-tab/fzf-tab.plugin.zsh"
 
+# Add fzf history search to all programs which use gnu readline.
+# See: https://github.com/lincheney/fzf-tab-completion#readline
+# https://github.com/lincheney/rl_custom_isearch
+# Part of provision_pi's installReadlineHack.
+export LD_PRELOAD="$HOME/readline-hack/librl_custom_function.so"
+
 ##################################################
 # START: only add absolute "cd" paths to history #
 ##################################################

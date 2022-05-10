@@ -1,0 +1,3 @@
+$include function rl_custom_isearch ~/readline-hack/librl_custom_isearch.so
+"\C-r": rl_custom_isearch
+"\C-s": rl_custom_isearch
