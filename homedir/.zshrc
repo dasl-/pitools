@@ -80,6 +80,8 @@ source $ZSH/oh-my-zsh.sh
 autoload -U colors && colors
 PROMPT="%{$fg[green]%}%B[$HOST] %~ %% %b%{$reset_color%}"
 
+export PATH="$PATH:$HOME/bin"
+
 # http://stackoverflow.com/questions/927358/how-to-undo-the-last-git-commit
 alias git_undo_last_commit="git reset --soft 'HEAD^'"
 
