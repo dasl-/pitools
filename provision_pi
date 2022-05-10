@@ -172,7 +172,7 @@ changeAndSetupShell(){
     sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
     # iterm shell integration
-    curl -L https://iterm2.com/shell_integration/zsh -o ~/.iterm2_shell_integration.zsh
+    curl -L --silent https://iterm2.com/shell_integration/zsh -o ~/.iterm2_shell_integration.zsh
 
     # fzf
     # We don't use apt to install fzf because the apt version is sometimes too old to be compatible with fzf-tab.
@@ -186,9 +186,9 @@ changeAndSetupShell(){
     mkdir -p "$fzf_tab_dir"
     git -C "$fzf_tab_dir" clone https://github.com/Aloxaf/fzf-tab
 
-    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.zshrc > "$HOME/.zshrc"
+    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.zshrc > "$HOME/.zshrc"
 
-    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/zsh_fix_history > "$HOME/zsh_fix_history"
+    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/zsh_fix_history > "$HOME/zsh_fix_history"
     sudo chmod a+x "$HOME/zsh_fix_history"
 }
 
