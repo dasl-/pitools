@@ -33,6 +33,7 @@ main(){
     setupSshKey
     updateAndInstallPackages
     setupGit
+    setupGitDelta
     installRmate
     clonePiTools
     changeAndSetupShell
@@ -91,11 +92,14 @@ updateAndInstallPackages(){
     sudo apt -y full-upgrade
 }
 
-# use diff-highlight as diff tool / pager
 setupGit(){
     info "\\nSetting up git..."
+
+    # Use diff-highlight as the `git diff` tool / pager. This may be overwritten by git delta
+    # (see setupGitDelta).
     sudo make -C /usr/share/doc/git/contrib/diff-highlight
     git config --global core.pager '/usr/share/doc/git/contrib/diff-highlight/diff-highlight | less'
+
     if [[ -n ${GIT_USER_EMAIL} ]]; then
         info "\\nSetting git user email to $GIT_USER_EMAIL..."
         git config --global user.email "$GIT_USER_EMAIL"
@@ -106,6 +110,36 @@ setupGit(){
     fi
 
     git config --global pull.rebase true
+}
+
+# Better git diff: https://github.com/dandavison/delta
+setupGitDelta(){
+    info "\\nSetting up git delta..."
+    # See: https://github.com/dandavison/delta/releases
+    curl -L --silent https://github.com/dandavison/delta/releases/download/0.12.1/git-delta_0.12.1_armhf.deb > /tmp/delta.deb
+    sudo dpkg -i /tmp/delta.deb
+
+    # See: https://github.com/dandavison/delta/issues/162#issuecomment-625952288
+    # https://github.com/sharkdp/bat/releases
+    curl -L --silent https://github.com/sharkdp/bat/releases/download/v0.20.0/bat_0.20.0_armhf.deb > /tmp/bat.deb
+    sudo dpkg -i /tmp/bat.deb
+    mkdir -p ~/.config/bat/syntaxes
+    curl --silent https://gist.githubusercontent.com/dasl-/9ea0d83cd478f36f6c7deaa737480492/raw/d2276cb45a41180304d7ad8b287b17c948c4d8a0/PHP.sublime-syntax > ~/.config/bat/syntaxes/PHP.sublime-syntax
+    mkdir -p ~/.config/bat/themes
+    curl --silent 'https://gist.githubusercontent.com/dasl-/255b183383bd412356d347c61d77181d/raw/4b4b41dfc1d705f13d40244c7fcf420c70a31d86/Monokai%2520(SL).tmTheme' > ~/.config/bat/themes/'Monokai (SL).tmTheme'
+    bat cache --build
+
+    # See: https://github.com/dandavison/delta#get-started
+    git config --global core.pager 'delta --true-color always --syntax-theme "Monokai (SL)"'
+    git config --global interactive.diffFilter 'delta --true-color always --syntax-theme "Monokai (SL)" --color-only'
+    git config --global delta.navigate 'true'
+    git config --global delta.light 'false'
+    git config --global delta.file-style 'yellow italic'
+    git config --global delta.file-decoration-style 'yellow ul'
+    git config --global delta.hunk-header-line-number-style 'yellow'
+    git config --global delta.word-diff-regex '.'
+    git config --global merge.conflictstyle 'diff3'
+    git config --global diff.colorMoved 'default'
 }
 
 # allows `subl path_to_file.txt` to use sublime text to edit the file on the pi
