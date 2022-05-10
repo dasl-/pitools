@@ -149,6 +149,9 @@ installRmate(){
     info "\\nInstalling rmate..."
     sudo wget -O /usr/local/bin/subl https://raw.githubusercontent.com/aurora/rmate/master/rmate
     sudo chmod a+x /usr/local/bin/subl
+
+    # set subl as default git editor
+    git config --global core.editor 'subl -w'
 }
 
 # Useful for the wifi_config script, shairport-sync installation, etc
