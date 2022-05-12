@@ -116,6 +116,7 @@ setupGit(){
 # Better git diff: https://github.com/dandavison/delta
 setupGitDelta(){
     info "\\nSetting up git delta..."
+
     # See: https://github.com/dandavison/delta/releases
     curl -L --silent https://github.com/dandavison/delta/releases/download/0.12.1/git-delta_0.12.1_armhf.deb > /tmp/delta.deb
     sudo dpkg -i /tmp/delta.deb
@@ -135,10 +136,7 @@ setupGitDelta(){
     git config --global interactive.diffFilter 'delta --true-color always --syntax-theme "Monokai (SL)" --color-only'
     git config --global delta.navigate 'true'
     git config --global delta.light 'false'
-    git config --global delta.file-style 'yellow italic'
-    git config --global delta.file-decoration-style 'yellow ul'
-    git config --global delta.hunk-header-line-number-style 'yellow'
-    git config --global delta.word-diff-regex '.'
+    git config --global delta.word-diff-regex '.' # https://github.com/dandavison/delta/issues/184
     git config --global merge.conflictstyle 'diff3'
     git config --global diff.colorMoved 'default'
 }
