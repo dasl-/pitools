@@ -118,17 +118,17 @@ setupGitDelta(){
     info "\\nSetting up git delta..."
 
     # See: https://github.com/dandavison/delta/releases
-    curl -L --silent https://github.com/dandavison/delta/releases/download/0.12.1/git-delta_0.12.1_armhf.deb > /tmp/delta.deb
+    curl -L https://github.com/dandavison/delta/releases/download/0.12.1/git-delta_0.12.1_armhf.deb > /tmp/delta.deb
     sudo dpkg -i /tmp/delta.deb
 
     # See: https://github.com/dandavison/delta/issues/162#issuecomment-625952288
     # https://github.com/sharkdp/bat/releases
-    curl -L --silent https://github.com/sharkdp/bat/releases/download/v0.20.0/bat_0.20.0_armhf.deb > /tmp/bat.deb
+    curl -L https://github.com/sharkdp/bat/releases/download/v0.20.0/bat_0.20.0_armhf.deb > /tmp/bat.deb
     sudo dpkg -i /tmp/bat.deb
     mkdir -p ~/.config/bat/syntaxes
-    curl --silent https://gist.githubusercontent.com/dasl-/9ea0d83cd478f36f6c7deaa737480492/raw/d2276cb45a41180304d7ad8b287b17c948c4d8a0/PHP.sublime-syntax > ~/.config/bat/syntaxes/PHP.sublime-syntax
+    curl https://gist.githubusercontent.com/dasl-/9ea0d83cd478f36f6c7deaa737480492/raw/d2276cb45a41180304d7ad8b287b17c948c4d8a0/PHP.sublime-syntax > ~/.config/bat/syntaxes/PHP.sublime-syntax
     mkdir -p ~/.config/bat/themes
-    curl --silent 'https://gist.githubusercontent.com/dasl-/255b183383bd412356d347c61d77181d/raw/4b4b41dfc1d705f13d40244c7fcf420c70a31d86/Monokai%2520(SL).tmTheme' > ~/.config/bat/themes/'Monokai (SL).tmTheme'
+    curl 'https://gist.githubusercontent.com/dasl-/255b183383bd412356d347c61d77181d/raw/4b4b41dfc1d705f13d40244c7fcf420c70a31d86/Monokai%2520(SL).tmTheme' > ~/.config/bat/themes/'Monokai (SL).tmTheme'
     bat cache --build
 
     # See: https://github.com/dandavison/delta#get-started
@@ -171,7 +171,7 @@ changeAndSetupShell(){
     sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
     # iterm shell integration
-    curl -L --silent https://iterm2.com/shell_integration/zsh -o ~/.iterm2_shell_integration.zsh
+    curl -L https://iterm2.com/shell_integration/zsh -o ~/.iterm2_shell_integration.zsh
 
     # fzf
     # We don't use apt to install fzf because the apt version is sometimes too old to be compatible with fzf-tab.
@@ -185,9 +185,9 @@ changeAndSetupShell(){
     mkdir -p "$fzf_tab_dir"
     git -C "$fzf_tab_dir" clone https://github.com/Aloxaf/fzf-tab
 
-    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.zshrc > "$HOME/.zshrc"
+    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.zshrc > "$HOME/.zshrc"
 
-    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/zsh_fix_history > "$HOME/zsh_fix_history"
+    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/zsh_fix_history > "$HOME/zsh_fix_history"
     sudo chmod a+x "$HOME/zsh_fix_history"
 }
 
@@ -195,13 +195,13 @@ changeAndSetupShell(){
 # See: https://github.com/lincheney/fzf-tab-completion#readline
 installReadlineHack(){
     info "\\nInstalling readline hack..."
-    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.inputrc > "$HOME/.inputrc"
+    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.inputrc > "$HOME/.inputrc"
     mkdir -p ~/readline-hack
-    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_function.so > "$HOME/readline-hack/librl_custom_function.so"
-    curl --silent https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_isearch.so > "$HOME/readline-hack/librl_custom_isearch.so"
+    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_function.so > "$HOME/readline-hack/librl_custom_function.so"
+    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_isearch.so > "$HOME/readline-hack/librl_custom_isearch.so"
 
     mkdir -p ~/bin
-    curl --silent https://raw.githubusercontent.com/dasl-/rl_custom_isearch/master/bin/rl_custom_isearch > "$HOME/bin/rl_custom_isearch"
+    curl https://raw.githubusercontent.com/dasl-/rl_custom_isearch/master/bin/rl_custom_isearch > "$HOME/bin/rl_custom_isearch"
     chmod a+x "$HOME/bin/rl_custom_isearch"
 
     # readline-hack workaround: https://gist.github.com/dasl-/8530db0b95a8793756cb5ce671651acf
