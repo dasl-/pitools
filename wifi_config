@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import sys
 
 def parseArgs():
     parser = argparse.ArgumentParser(
@@ -33,8 +34,8 @@ def setupWifi():
     try:
         f = open(f"{args.device_path}/wpa_supplicant.conf", "w")
     except PermissionError:
-        print("This script must be run as sudo")
-        exit(1)
+        print("This script must be run as sudo", file = sys.stderr)
+        sys.exit(1)
 
     f.write(f"""country={args.wifi_country_code}
     ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
@@ -48,8 +49,8 @@ def setupWifi():
 
 
 if os.getuid() != 0:
-    print("This script must be run as sudo")
-    exit(1)
+    print("This script must be run as sudo", file = sys.stderr)
+    sys.exit(1)
 
 args = parseArgs()
 setupWifi()

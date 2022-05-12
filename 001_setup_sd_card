@@ -30,9 +30,9 @@ def parseArgs():
         'https://www.iso.org/obp/ui/#search')
 
     if os.getuid() != 0:
-        print("This script must be run as sudo.\n")
+        print("This script must be run as sudo.\n", file = sys.stderr)
         parser.print_help()
-        exit(1)
+        sys.exit(1)
 
     args = parser.parse_args()
     args.device_path = args.device_path.rstrip('/')
@@ -54,7 +54,7 @@ def imageSdCard():
             break
         time.sleep(0.5)
         if time.time() > time_limit:
-            print(f"Failed to remount {args.device_path}.")
+            print(f"Failed to remount {args.device_path}.", file = sys.stderr)
             sys.exit(1)
 
     # prevent weirdness where subsequent writes are flakey?
@@ -76,20 +76,20 @@ def validate():
     try:
         command(f'sudo ls -l {args.device_path}/cmdline.txt')
     except Exception:
-        print("ERROR: failed to validate raspbian install")
-        exit(1)
+        print("ERROR: failed to validate raspbian install", file = sys.stderr)
+        sys.exit(1)
 
     try:
         command(f'sudo ls -l {args.device_path}/ssh')
     except Exception:
-        print("ERROR: failed to validate ssh setup")
-        exit(1)
+        print("ERROR: failed to validate ssh setup", file = sys.stderr)
+        sys.exit(1)
 
     try:
         command(f'sudo ls -l {args.device_path}/wpa_supplicant.conf')
     except Exception:
-        print("ERROR: failed to validate wifi setup")
-        exit(1)
+        print("ERROR: failed to validate wifi setup", file = sys.stderr)
+        sys.exit(1)
 
 def finish():
     print("Ejecting SD card...")
