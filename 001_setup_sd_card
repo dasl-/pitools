@@ -75,8 +75,16 @@ def imageSdCard():
 # https://www.raspberrypi.com/documentation/computers/configuration.html#configuring-a-user
 # https://www.raspberrypi.com/news/raspberry-pi-bullseye-update-april-2022/
 def setupUserAccount():
+    print("Setting up user account...")
     import passlib.hash
-    password_hash = passlib.hash.sha512_crypt.hash(args.user_password)
+
+    # Use fewer hashing rounds than the default of 656000. This makes password based login faster. In testing,
+    # it reduced the time to log in on a pi4 using a password from ~8s to ~2s. Furthermore, this is the number
+    # of rounds that would be used by default if following the raspberry pi official docs for generating
+    # passwords.
+    #
+    # See: https://passlib.readthedocs.io/en/stable/lib/passlib.hash.sha512_crypt.html#passlib.hash.sha512_crypt
+    password_hash = passlib.hash.sha512_crypt.using(rounds=5000).hash(args.user_password)
     f = None
     try:
         f = open(f"{args.device_path}/userconf.txt", "w")
