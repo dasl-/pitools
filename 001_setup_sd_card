@@ -21,6 +21,10 @@ def parseArgs():
         help='Path to disk image. Download Raspberry Pi OS Lite image from https://www.raspberrypi.org/software/operating-systems/')
     parser.add_argument('--device-path', dest='device_path', action='store', default='/Volumes/boot',
         help='Mounted volume path after SD card has been imaged.')
+    parser.add_argument('--user-name', dest='user_name', action='store', required = True,
+        help='User account to create')
+    parser.add_argument('--user-password', dest='user_password', action='store', required = True,
+        help='Password for the user account')
     parser.add_argument('--wifi-network-name', dest='wifi_network_name', action='store', required = True,
         help='Name of the network to join')
     parser.add_argument('--wifi-password', dest='wifi_password', action='store', required = True,
@@ -37,6 +41,14 @@ def parseArgs():
     args = parser.parse_args()
     args.device_path = args.device_path.rstrip('/')
     return args
+
+def validateDependencies():
+    try:
+        import passlib
+    except ImportError:
+        print("The passlib package is required. Please install it: " +
+            "'sudo -H python3 -m pip install --upgrade passlib'.", file = sys.stderr)
+        sys.exit(1)
 
 # https://www.raspberrypi.org/documentation/installation/installing-images/mac.md
 def imageSdCard():
@@ -59,6 +71,21 @@ def imageSdCard():
 
     # prevent weirdness where subsequent writes are flakey?
     time.sleep(5)
+
+# https://www.raspberrypi.com/documentation/computers/configuration.html#configuring-a-user
+# https://www.raspberrypi.com/news/raspberry-pi-bullseye-update-april-2022/
+def setupUserAccount():
+    import passlib.hash
+    password_hash = passlib.hash.sha512_crypt.hash(args.user_password)
+    f = None
+    try:
+        f = open(f"{args.device_path}/userconf.txt", "w")
+    except PermissionError:
+        print('This script must be run as sudo', file = sys.stderr)
+        sys.exit(1)
+
+    f.write(f'{args.user_name}:{password_hash}')
+    f.close()
 
 # https://raspberrypi.stackexchange.com/a/57023
 def setupWifi():
@@ -94,12 +121,12 @@ def validate():
 def finish():
     print("Ejecting SD card...")
     command(f'sudo diskutil eject /dev/rdisk{args.disk_num}')
-    print("""
+    print(f"""
 SD card setup was successful! Please insert the SD card into the raspberry pi and boot it up.
 Your raspberry pi will be accessible via:
 
-    ssh pi@raspberrypi.local
-    password: raspberry
+    ssh {args.user_name}@raspberrypi.local
+    password: {args.user_password}
 """)
 
 def command(command):
@@ -109,7 +136,9 @@ def command(command):
 
 
 args = parseArgs()
+validateDependencies()
 imageSdCard()
+setupUserAccount()
 setupWifi()
 setupSsh()
 validate()

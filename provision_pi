@@ -2,8 +2,7 @@
 
 set -euo pipefail -o errtrace
 
-OLD_PASSWORD='raspberry'
-NEW_PASSWORD="$OLD_PASSWORD"
+PASSWORD=""
 PATH_TO_SSH_KEY="$HOME/.ssh/id_ed25519"
 GIT_USER_EMAIL=''
 GIT_USER_NAME=''
@@ -12,14 +11,13 @@ ENABLE_SPI=false
 SHOULD_DELETE_SELF=false
 
 usage(){
-    echo "Usage: $(basename "${0}") [-n <NEW_PASSWORD>] [-h <HOSTNAME>] [-o <OLD_PASSWORD>] [-i <PATH_TO_SSH_KEY>] [-s] [-r]"
+    echo "Usage: $(basename "${0}") -p <PASSWORD> [-h <HOSTNAME>] [-i <PATH_TO_SSH_KEY>] [-s] [-r]"
     echo "Run this from the raspberry pi."
-    echo "  -p NEW_PASSWORD    : Set the new password. Defaults to $OLD_PASSWORD"
+    echo "  -p PASSWORD        : Password for the raspberry pi's user account."
     echo "  -h HOSTNAME        : Set the hostname. Defaults to $HOSTNAME."
-    echo "  -o OLD_PASSWORD    : defaults to: $OLD_PASSWORD"
     echo "  -i PATH_TO_SSH_KEY : defaults to: $PATH_TO_SSH_KEY"
     echo "  -e GIT_USER_EMAIL  : email address for git"
-    echo "  -u GIT_USER_NAME   : user name for git"
+    echo "  -f GIT_USER_NAME   : user name for git"
     echo "  -s                 : Enable SPI"
     echo "  -r                 : delete self (this script) after running"
     exit 1
@@ -41,12 +39,11 @@ main(){
     setTimezone
     setHostname
     maybeEnableSpi
-    changePassword
     maybeDeleteSelf
 
     info "\\nRestarting..."
     info "Pi will be available via:\\n"
-    info "  ssh pi@$HOSTNAME.local\\n"
+    info "  ssh $USER@$HOSTNAME.local\\n"
 
     # redirect "sudo: unable to resolve host raspberrypi: Name or service not known" to /dev/null
     # I think sudo has weirdness immediately after a hostname change. Hide this output to avoid
@@ -55,26 +52,44 @@ main(){
 }
 
 parseOpts(){
-    while getopts ":p:h:o:i:e:u:sr" opt; do
+    while getopts ":p:h:i:e:f:sr" opt; do
         case ${opt} in
-            p) NEW_PASSWORD=${OPTARG} ;;
+            p) PASSWORD=${OPTARG} ;;
             h)
                 if [[ "$OPTARG" =~ ^[a-z]([a-z0-9-]*[a-z0-9])?$ ]]; then
                     HOSTNAME=${OPTARG}
                 else
-                    echo "Invalid hostname."
+                    warn "Invalid hostname."
                     usage
                 fi
                 ;;
-            o) OLD_PASSWORD=${OPTARG} ;;
             i) PATH_TO_SSH_KEY=${OPTARG} ;;
             e) GIT_USER_EMAIL=${OPTARG} ;;
-            u) GIT_USER_NAME=${OPTARG} ;;
+            f) GIT_USER_NAME=${OPTARG} ;;
             s) ENABLE_SPI=true ;;
             r) SHOULD_DELETE_SELF=true ;;
+            \?)
+                warn "Invalid option: -$OPTARG"
+                usage
+                ;;
+            :)
+                warn "Option -$OPTARG requires an argument."
+                usage
+                ;;
             *) usage ;;
           esac
     done
+
+    # Validation
+    local has_usage_errors
+    has_usage_errors=false
+    if [ -z "$PASSWORD" ]; then
+        has_usage_errors=true
+        warn "Please supply a password for the raspberry pi's user account with the flag: -p"
+    fi
+    if [[ $has_usage_errors == "true" ]]; then
+        usage
+    fi
 }
 
 setupSshKey(){
@@ -169,7 +184,7 @@ changeAndSetupShell(){
     info "\\nSetting up zsh shell..."
 
     # change default shell
-    echo "$OLD_PASSWORD" | chsh -s /usr/bin/zsh
+    echo "$PASSWORD" | chsh -s /usr/bin/zsh
 
     # oh-my-zsh
     sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
@@ -230,12 +245,6 @@ maybeEnableSpi(){
         # https://raspberrypi.stackexchange.com/a/96679
         sudo raspi-config nonint do_spi 0
     fi
-}
-
-changePassword(){
-    info "\\nChanging password to: $NEW_PASSWORD"
-    echo -e "$OLD_PASSWORD\n$NEW_PASSWORD\n$NEW_PASSWORD" | passwd
-    sleep 1 # password setup is randomly slow to complete. Wait a bit to avoid cloberring subsequent output lines.
 }
 
 maybeDeleteSelf() {

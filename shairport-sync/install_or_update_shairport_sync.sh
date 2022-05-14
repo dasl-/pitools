@@ -7,7 +7,7 @@
 
 set -euo pipefail -o errtrace
 
-BASE_DIR=/home/pi
+BASE_DIR=$HOME
 NAME=''
 CONFIG=/boot/config.txt
 
@@ -51,7 +51,7 @@ main(){
 }
 
 parseOpts(){
-    while getopts "d:n:h" opt; do
+    while getopts ":d:n:h" opt; do
         case ${opt} in
             d)
                 BASE_DIR=${OPTARG%/}  # remove trailing slash if present
@@ -59,6 +59,14 @@ parseOpts(){
                 NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
                 ;;
             n) NAME=${OPTARG} ;;
+            \?)
+                warn "Invalid option: -$OPTARG"
+                usage
+                ;;
+            :)
+                warn "Option -$OPTARG requires an argument."
+                usage
+                ;;
             *) usage ;;
         esac
     done
