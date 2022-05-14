@@ -136,9 +136,13 @@ setupGitDelta(){
     git config --global interactive.diffFilter 'delta --true-color always --syntax-theme "Monokai (SL)" --color-only'
     git config --global delta.navigate 'true'
     git config --global delta.light 'false'
-    git config --global delta.word-diff-regex '.' # https://github.com/dandavison/delta/issues/184
     git config --global merge.conflictstyle 'diff3'
     git config --global diff.colorMoved 'default'
+
+    # My delta customizations:
+    git config --global delta.minus-style 'syntax auto'
+    git config --global delta.word-diff-regex '.' # https://github.com/dandavison/delta/issues/184
+
 }
 
 # allows `subl path_to_file.txt` to use sublime text to edit the file on the pi
