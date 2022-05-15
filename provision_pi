@@ -37,16 +37,19 @@ main(){
     changeAndSetupShell
     installReadlineHack
     setTimezone
-    setHostname
     maybeEnableSpi
+
+    # Setting the hostname should be as close to the last step as possible. Anything after this step that
+    # requires `sudo` will emit a warning: "sudo: unable to resolve host raspberrypi: Name or service not known".
+    # Note that `sudo` will still work; it's just a "warning".
+    setHostname
     maybeDeleteSelf
 
     info "\\nRestarting..."
     info "Pi will be available via:\\n"
     info "  ssh $USER@$HOSTNAME.local\\n"
 
-    # redirect "sudo: unable to resolve host raspberrypi: Name or service not known" to /dev/null
-    # I think sudo has weirdness immediately after a hostname change. Hide this output to avoid
+    # Hide the "sudo: unable to resolve host raspberrypi: Name or service not known" output to avoid
     # someone thinking something didn't work (it's fine).
     sudo shutdown -r now 2>/dev/null
 }
@@ -144,6 +147,7 @@ setupGitDelta(){
     curl https://gist.githubusercontent.com/dasl-/9ea0d83cd478f36f6c7deaa737480492/raw/d2276cb45a41180304d7ad8b287b17c948c4d8a0/PHP.sublime-syntax > ~/.config/bat/syntaxes/PHP.sublime-syntax
     mkdir -p ~/.config/bat/themes
     curl 'https://gist.githubusercontent.com/dasl-/255b183383bd412356d347c61d77181d/raw/4b4b41dfc1d705f13d40244c7fcf420c70a31d86/Monokai%2520(SL).tmTheme' > ~/.config/bat/themes/'Monokai (SL).tmTheme'
+    bat cache --clear
     bat cache --build
 
     # See: https://github.com/dandavison/delta#get-started
