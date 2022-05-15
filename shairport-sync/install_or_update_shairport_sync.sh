@@ -205,6 +205,11 @@ alsa =
   output_device = "hw:Headphones";
   mixer_control_name = "Headphone";
 };
+
+diagnostics =
+{
+  log_verbosity = 1; // "0" means no debug verbosity, "3" is most verbose.
+};
 EOF
     else
         info "Not specifying default configuration because a user modified configuration file already exists."
