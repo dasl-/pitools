@@ -49,8 +49,9 @@ main(){
     info "Pi will be available via:\\n"
     info "  ssh $USER@$HOSTNAME.local\\n"
 
-    # Hide the "sudo: unable to resolve host raspberrypi: Name or service not known" output to avoid
-    # someone thinking something didn't work (it's fine).
+    # Hide the "sudo: unable to resolve host raspberrypi: Name or service not known" output by
+    # redirecting stderr. This it to avoid someone thinking something didn't work  (it's fine).
+    # Related to changing the hostname via setHostname above.
     sudo shutdown -r now 2>/dev/null
 }
 
