@@ -42,8 +42,8 @@ Run this from laptop.
   -j SSH_KEY_TO_ADD       : path to ssh key to copy to ~/.ssh on the raspberry pi. If you specify the public
                             key path, the corresponding private key will also be copied and vice versa.
                             Defaults to: /Users/davidleibovic/standard_raspberry_pi_key/id_ed25519.pub
-  -h NEW_HOSTNAME         : Change the raspberry pi's hostname. Defaults to raspberrypi.local.
-  -g OLD_HOSTNAME         : Defaults to raspberrypi.local
+  -h NEW_HOSTNAME         : Change the raspberry pi's hostname. Defaults to raspberrypi.
+  -g OLD_HOSTNAME         : Defaults to raspberrypi
   -e GIT_USER_EMAIL       : email address for git
   -f GIT_USER_NAME        : user name for git
   -s                      : Enable SPI
