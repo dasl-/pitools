@@ -6,7 +6,7 @@ PASSWORD=""
 PATH_TO_SSH_KEY="$HOME/.ssh/id_ed25519"
 GIT_USER_EMAIL=''
 GIT_USER_NAME=''
-HOSTNAME="raspberrypi.local"
+HOSTNAME="raspberrypi"
 ENABLE_SPI=false
 SHOULD_DELETE_SELF=false
 

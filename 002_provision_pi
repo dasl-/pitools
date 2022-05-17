@@ -4,7 +4,7 @@ set -euo pipefail -o errtrace
 
 SSH_KEY_TO_AUTHORIZE="$HOME/.ssh/id_ed25519.pub"
 SSH_KEY_TO_ADD="$HOME/standard_raspberry_pi_key/id_ed25519.pub"
-OLD_HOSTNAME="raspberrypi.local"
+OLD_HOSTNAME="raspberrypi"
 NEW_HOSTNAME="$OLD_HOSTNAME"
 
 USER_NAME=""
@@ -100,7 +100,10 @@ parseOpts(){
 setupSsh(){
     info "\\nAuthorizing passwordless ssh with $SSH_KEY_TO_AUTHORIZE..."
     info "When asked for a password, please enter the raspberry pi's password: $PASSWORD\\n"
-    eval "ssh-copy-id $SSH_OPTS -i $SSH_KEY_TO_AUTHORIZE $USER_NAME@$OLD_HOSTNAME"
+
+    local hostname_for_ssh
+    hostname_for_ssh=$(getHostnameForSsh "$OLD_HOSTNAME")
+    eval "ssh-copy-id $SSH_OPTS -i $SSH_KEY_TO_AUTHORIZE $USER_NAME@$hostname_for_ssh"
 
     if [[ ${SSH_KEY_TO_ADD} == *.pub ]]; then
         PUB_SSH_KEY_TO_ADD="$SSH_KEY_TO_ADD"
@@ -111,7 +114,7 @@ setupSsh(){
     fi
     PRIV_SSH_KEY_FILE=$(basename "$PRIV_SSH_KEY_TO_ADD")
 
-    destination="$USER_NAME@$OLD_HOSTNAME:~/.ssh"
+    destination="$USER_NAME@$hostname_for_ssh:~/.ssh"
     info "\\nCopying $PUB_SSH_KEY_TO_ADD and $PRIV_SSH_KEY_TO_ADD to $destination..."
     eval "scp $SSH_OPTS $PUB_SSH_KEY_TO_ADD $PRIV_SSH_KEY_TO_ADD $destination"
 }
@@ -119,7 +122,9 @@ setupSsh(){
 provisionPi(){
     info "\\nProvisioning raspberry pi..."
 
-    provision_cmd="ssh $SSH_OPTS $USER_NAME@$OLD_HOSTNAME -- "
+    local hostname_for_ssh
+    hostname_for_ssh=$(getHostnameForSsh "$OLD_HOSTNAME")
+    provision_cmd="ssh $SSH_OPTS $USER_NAME@$hostname_for_ssh -- "
     provision_cmd+="'curl https://raw.githubusercontent.com/dasl-/pitools/main/provision_pi > provision_pi && "
     provision_cmd+="chmod a+x provision_pi && "
     provision_cmd+="./provision_pi -p $PASSWORD -h $NEW_HOSTNAME -i ~/.ssh/$PRIV_SSH_KEY_FILE -e $GIT_USER_EMAIL -f $GIT_USER_NAME -r "
@@ -129,6 +134,19 @@ provisionPi(){
     provision_cmd+="'"
     info "Running: $provision_cmd"
     eval "$provision_cmd"
+}
+
+getHostnameForSsh(){
+    local hostname_for_ssh;
+    hostname_for_ssh=$1
+
+    # If it matches the hostname regex, assume its a hostname that we're supposed to append '.local' to.
+    if [[ "$hostname_for_ssh" =~ ^[a-z]([a-z0-9-]*[a-z0-9])?$ ]]; then
+        hostname_for_ssh="$hostname_for_ssh.local"
+    fi
+
+    # Otherwise, assume it's an IP address that we don't append '.local' to.
+    echo "$hostname_for_ssh"
 }
 
 fail(){
