@@ -2,6 +2,7 @@
 
 set -euo pipefail -o errtrace
 
+CONFIG=/boot/config.txt
 PASSWORD=""
 PATH_TO_SSH_KEY="$HOME/.ssh/id_ed25519"
 GIT_USER_EMAIL=''
@@ -37,6 +38,7 @@ main(){
     changeAndSetupShell
     installReadlineHack
     setTimezone
+    setOverVoltage
     maybeEnableSpi
 
     # Setting the hostname should be as close to the last step as possible. Anything after this step that
@@ -236,12 +238,30 @@ setTimezone(){
     sudo timedatectl set-timezone UTC
 }
 
-# Allows sshing and hitting the pifi webpage via "<hostname>.local"
-# See: https://www.raspberrypi.org/documentation/remote-access/ip-address.md "Resolving raspberrypi.local with mDNS"
-setHostname(){
-    info "\\nSetting hostname to: $HOSTNAME"
-    echo "$HOSTNAME" | sudo tee /etc/hostname >/dev/null 2>&1
-    sudo sed -i -E 's/(127\.0\.1\.1\s+)[^ ]+/\1'"$HOSTNAME"'/g' /etc/hosts
+# See: https://forums.raspberrypi.com/viewtopic.php?t=334876
+setOverVoltage(){
+    local over_voltage
+    over_voltage=$(vcgencmd get_config over_voltage | sed -n 's/over_voltage=\(.*\)/\1/p')
+    if (( over_voltage >= 2 )); then
+        info "over_voltage was already high enough ( $over_voltage )..."
+        return
+    fi
+
+    force_turbo=$(vcgencmd get_config force_turbo | sed -n 's/force_turbo=\(.*\)/\1/p')
+    if (( force_turbo == 1 )); then
+        # See: https://www.raspberrypi.com/documentation/computers/config_txt.html#overclocking-options
+        warn "WARNING: not setting over_voltage because force_turbo is enabled and we don't " \
+            "want to set your warranty bit. This might result in wifi or video playback issues."
+        return
+    fi
+
+    # Set over_voltage.
+    info "Setting over_voltage to 2..."
+
+    # comment out existing over_voltage lines in config
+    sudo sed $CONFIG -i -e "s/^\(over_voltage=.*\)/#\1/"
+
+    echo -e 'over_voltage=2' | sudo tee -a $CONFIG >/dev/null
 }
 
 maybeEnableSpi(){
@@ -250,6 +270,14 @@ maybeEnableSpi(){
         # https://raspberrypi.stackexchange.com/a/96679
         sudo raspi-config nonint do_spi 0
     fi
+}
+
+# Allows sshing and hitting the pifi webpage via "<hostname>.local"
+# See: https://www.raspberrypi.org/documentation/remote-access/ip-address.md "Resolving raspberrypi.local with mDNS"
+setHostname(){
+    info "\\nSetting hostname to: $HOSTNAME"
+    echo "$HOSTNAME" | sudo tee /etc/hostname >/dev/null 2>&1
+    sudo sed -i -E 's/(127\.0\.1\.1\s+)[^ ]+/\1'"$HOSTNAME"'/g' /etc/hosts
 }
 
 maybeDeleteSelf() {
