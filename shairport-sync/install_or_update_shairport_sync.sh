@@ -13,9 +13,11 @@ CONFIG=/boot/config.txt
 
 SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
 SHAIRPORT_SYNC_CLONE_URL=https://github.com/mikebrady/shairport-sync.git
+SPS_BRANCH='development'
 
 NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
 NQPTP_CLONE_URL=https://github.com/mikebrady/nqptp.git
+NQPTP_BRANCH='main'
 
 usage(){
     echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-n <NAME>]"
@@ -24,6 +26,8 @@ usage(){
     echo "                      Defaults to $BASE_DIR."
     echo "  -n NAME           : The name the service will advertise to iTunes."
     echo "                      Use %h for the hostname and %H for the Hostname. Defaults to %H."
+    echo "  -b SPS_BRANCH     : Git branch to use for shairport-sync. Defaults to $SPS_BRANCH."
+    echo "  -c NQPTP_BRANCH   : Git branch to use for nqptp. Defaults to $NQPTP_BRANCH."
     exit 1
 }
 
@@ -51,7 +55,7 @@ main(){
 }
 
 parseOpts(){
-    while getopts ":d:n:h" opt; do
+    while getopts ":d:n:b:c:h" opt; do
         case ${opt} in
             d)
                 BASE_DIR=${OPTARG%/}  # remove trailing slash if present
@@ -59,6 +63,8 @@ parseOpts(){
                 NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
                 ;;
             n) NAME=${OPTARG} ;;
+            b) SPS_BRANCH=${OPTARG} ;;
+            c) NQPTP_BRANCH=${OPTARG} ;;
             \?)
                 warn "Invalid option: -$OPTARG"
                 usage
@@ -150,6 +156,7 @@ cloneOrPullRepo(){
 buildNqptp(){
     info "Building nqptp..."
     pushd "$NQPTP_REPO_PATH"
+    git checkout "$NQPTP_BRANCH"
     autoreconf -fi
     ./configure --with-systemd-startup
     make
@@ -167,7 +174,7 @@ startNqptpService(){
 buildShairportSync(){
     info "Building shairport-sync... This may take a while..."
     pushd "$SHAIRPORT_SYNC_REPO_PATH"
-    git checkout development
+    git checkout "$SPS_BRANCH"
     autoreconf -fi
     ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd --with-airplay-2 --with-dbus-interface
     make -j
