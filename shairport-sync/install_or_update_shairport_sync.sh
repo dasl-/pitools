@@ -20,7 +20,7 @@ NQPTP_CLONE_URL=https://github.com/mikebrady/nqptp.git
 NQPTP_BRANCH='main'
 
 usage(){
-    echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-n <NAME>]"
+    echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-n <NAME>] [-b <SPS_BRANCH>] [-c <NQPTP_BRANCH>]"
     echo "Installs or updates shairport-sync on a raspberry pi."
     echo "  -d BASE_DIRECTORY : Base directory in which to clone shairport_sync. Trailing slash optional."
     echo "                      Defaults to $BASE_DIR."
