@@ -215,7 +215,8 @@ alsa =
 
 diagnostics =
 {
-  log_verbosity = 1; // "0" means no debug verbosity, "3" is most verbose.
+  log_verbosity = 2; // "0" means no debug verbosity, "3" is most verbose.
+  statistics = "yes";
 };
 EOF
     else
