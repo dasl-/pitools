@@ -176,10 +176,16 @@ buildShairportSync(){
     pushd "$SHAIRPORT_SYNC_REPO_PATH"
     git checkout "$SPS_BRANCH"
     autoreconf -fi
-    ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd --with-airplay-2 --with-dbus-interface
+
+    # Use CFLAGS to get more informative coredumps: https://github.com/mikebrady/shairport-sync/issues/1479
+    CFLAGS="-O0 -g" CXXFLAGS="-O0 -g" ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd --with-airplay-2 --with-dbus-interface
+
     make -j
     sudo make install
     popd
+
+    # Enable core dumps: https://github.com/mikebrady/shairport-sync/issues/1479
+    printf "\n[Service]\nLimitCORE=infinity\n" | sudo tee --append /lib/systemd/system/shairport-sync.service >/dev/null
 }
 
 # Only add configuration file if it is not already present
