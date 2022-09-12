@@ -155,6 +155,9 @@ buildNqptp(){
     info "Building nqptp..."
     pushd "$NQPTP_REPO_PATH"
     git checkout "$NQPTP_BRANCH"
+
+    # pull again because if we were on another branch before, we need to pull after checking out the correct branch
+    cloneOrPullRepo "$NQPTP_REPO_PATH" "$NQPTP_CLONE_URL"
     autoreconf -fi
     ./configure --with-systemd-startup
     make
@@ -173,6 +176,9 @@ buildShairportSync(){
     info "Building shairport-sync... This may take a while..."
     pushd "$SHAIRPORT_SYNC_REPO_PATH"
     git checkout "$SPS_BRANCH"
+
+    # pull again because if we were on another branch before, we need to pull after checking out the correct branch
+    cloneOrPullRepo "$SHAIRPORT_SYNC_REPO_PATH" "$SHAIRPORT_SYNC_CLONE_URL"
     autoreconf -fi
 
     # Use CFLAGS to get more informative coredumps: https://github.com/mikebrady/shairport-sync/issues/1479
