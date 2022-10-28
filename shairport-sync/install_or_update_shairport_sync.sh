@@ -216,6 +216,13 @@ general =
   volume_range_db = 40; // make volume line up approximately with my own logarithmic volume algorithm on pis
   volume_max_db = 0.0; // prevent clipping on raspberry pis
   $name_string
+
+  // Try to prevent brief drop outs that are occuring to wifi connected pis when I'm connected to all of my
+  // SPS receivers at the same time (4 at time of writing). This doesn't happen really when I'm only connected
+  // to one or two airplay receivers, but I notice it when I'm connected to all four.
+  // Perhaps this is due to network congestion. See:
+  // https://github.com/mikebrady/shairport-sync/blob/development/TROUBLESHOOTING.md#buffer-underflow-to-audio-backend
+  audio_backend_buffer_desired_length_in_seconds = 1
 };
 
 alsa =
