@@ -222,7 +222,7 @@ general =
   // to one or two airplay receivers, but I notice it when I'm connected to all four.
   // Perhaps this is due to network congestion. See:
   // https://github.com/mikebrady/shairport-sync/blob/development/TROUBLESHOOTING.md#buffer-underflow-to-audio-backend
-  audio_backend_buffer_desired_length_in_seconds = 1
+  audio_backend_buffer_desired_length_in_seconds = 2
 };
 
 alsa =
