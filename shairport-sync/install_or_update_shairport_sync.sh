@@ -19,8 +19,10 @@ NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
 NQPTP_CLONE_URL=https://github.com/mikebrady/nqptp.git
 NQPTP_BRANCH='main'
 
+SKIP_CLONE_AND_PULL=false
+
 usage(){
-    echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-n <NAME>] [-b <SPS_BRANCH>] [-c <NQPTP_BRANCH>]"
+    echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-n <NAME>] [-b <SPS_BRANCH>] [-c <NQPTP_BRANCH>] [-s]"
     echo "Installs or updates shairport-sync on a raspberry pi."
     echo "  -d BASE_DIRECTORY : Base directory in which to clone shairport_sync. Trailing slash optional."
     echo "                      Defaults to $BASE_DIR."
@@ -28,6 +30,7 @@ usage(){
     echo "                      Use %h for the hostname and %H for the Hostname. Defaults to %H."
     echo "  -b SPS_BRANCH     : Git branch to use for shairport-sync. Defaults to $SPS_BRANCH."
     echo "  -c NQPTP_BRANCH   : Git branch to use for nqptp. Defaults to $NQPTP_BRANCH."
+    echo "  -s                : skip pulling and cloning the shairport-sync and nqptp repos"
     exit 1
 }
 
@@ -55,7 +58,7 @@ main(){
 }
 
 parseOpts(){
-    while getopts ":d:n:b:c:h" opt; do
+    while getopts ":d:n:b:c:hs" opt; do
         case ${opt} in
             d)
                 BASE_DIR=${OPTARG%/}  # remove trailing slash if present
@@ -65,6 +68,7 @@ parseOpts(){
             n) NAME=${OPTARG} ;;
             b) SPS_BRANCH=${OPTARG} ;;
             c) NQPTP_BRANCH=${OPTARG} ;;
+            s) SKIP_CLONE_AND_PULL=true ;;
             \?)
                 warn "Invalid option: -$OPTARG"
                 usage
@@ -141,6 +145,12 @@ removeOldVersions(){
 cloneOrPullRepo(){
     local repo_path="$1"
     local clone_url="$2"
+
+    if [[ ${SKIP_CLONE_AND_PULL} == "true" ]]; then
+        info "Skipping clone and pull of $repo_path ..."
+        return
+    fi
+
     mkdir -p "$BASE_DIR"
     if [ ! -d "$repo_path" ]
     then
