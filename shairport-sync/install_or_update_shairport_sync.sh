@@ -171,6 +171,7 @@ buildNqptp(){
     cloneOrPullRepo "$NQPTP_REPO_PATH" "$NQPTP_CLONE_URL"
     autoreconf -fi
     ./configure --with-systemd-startup
+    make clean # more praying to the make gods? see the same `make clean` in buildShairportSync
     make
     sudo make install
     popd
