@@ -234,6 +234,10 @@ alsa =
 {
   output_device = "hw:Headphones";
   mixer_control_name = "Headphone";
+
+  // Fix issue where multiroom audio is sometimes a few milliseconds out of sync with Realtime Audio streams
+  // See: https://github.com/mikebrady/shairport-sync/issues/1563#issuecomment-1328166125
+  disable_standby_mode = "always";
 };
 
 diagnostics =
