@@ -194,7 +194,8 @@ buildShairportSync(){
     autoreconf -fi
 
     # Use CFLAGS to get more informative coredumps: https://github.com/mikebrady/shairport-sync/issues/1479
-    CFLAGS="-O0 -g" CXXFLAGS="-O0 -g" ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd --with-airplay-2 --with-dbus-interface
+    # CFLAGS="-O0 -g" CXXFLAGS="-O0 -g" ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd --with-airplay-2 --with-dbus-interface
+    ./configure --sysconfdir=/etc --with-alsa --with-soxr --with-avahi --with-ssl=openssl --with-systemd --with-airplay-2 --with-dbus-interface
 
     make clean # maybe this is necessary? https://github.com/mikebrady/shairport-sync/issues/1571#issuecomment-1312445078
     make -j
