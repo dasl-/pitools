@@ -9,3 +9,6 @@ To ensure the shairport-sync config file is replaced, you must delete the old on
 ```
 dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@piwall10.local,pi@kitchen.local 'sudo rm /etc/shairport-sync.conf'
 ```
+
+## raspberry pi sound quality
+https://forums.raspberrypi.com/viewtopic.php?f=29&t=195178
