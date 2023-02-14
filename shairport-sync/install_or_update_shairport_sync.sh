@@ -17,7 +17,7 @@ SPS_BRANCH='development'
 
 NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
 NQPTP_CLONE_URL=https://github.com/mikebrady/nqptp.git
-NQPTP_BRANCH='main'
+NQPTP_BRANCH='development'
 
 SKIP_CLONE_AND_PULL=false
 
