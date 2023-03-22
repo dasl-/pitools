@@ -229,7 +229,7 @@ installReadlineHack(){
     curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_isearch.so > "$HOME/readline-hack/librl_custom_isearch.so"
 
     mkdir -p ~/bin
-    curl https://raw.githubusercontent.com/dasl-/rl_custom_isearch/master/bin/rl_custom_isearch > "$HOME/bin/rl_custom_isearch"
+    curl https://raw.githubusercontent.com/lincheney/rl_custom_isearch/master/bin/rl_custom_isearch > "$HOME/bin/rl_custom_isearch"
     chmod a+x "$HOME/bin/rl_custom_isearch"
 
     # readline-hack workaround: https://gist.github.com/dasl-/8530db0b95a8793756cb5ce671651acf
