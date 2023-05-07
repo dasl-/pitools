@@ -203,6 +203,12 @@ buildShairportSync(){
 
     # Enable core dumps: https://github.com/mikebrady/shairport-sync/issues/1479
     printf "\n[Service]\nLimitCORE=infinity\n" | sudo tee --append /lib/systemd/system/shairport-sync.service >/dev/null
+
+    # Enable automatic restarting of the service - we've had problems with rarely occurring segfaults.
+    # Segfaults generally occur less than once per month.
+    # https://github.com/mikebrady/shairport-sync/issues/1571
+    printf "\n[Service]\nRestart=always\n" | sudo tee --append /lib/systemd/system/shairport-sync.service >/dev/null
+    printf "\n[Unit]\nStartLimitIntervalSec=30\nStartLimitBurst=10\n" | sudo tee --append /lib/systemd/system/shairport-sync.service >/dev/null
 }
 
 # Only add configuration file if it is not already present
