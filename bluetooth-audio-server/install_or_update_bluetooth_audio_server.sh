@@ -152,7 +152,9 @@ updateBluetoothConfig(){
         printf "\n[General]\nDiscoverableTimeout = 0\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
     fi
 
-    bluetoothctl system-alias "$NAME"
+    # Ensure that if the NAME has spaces, it doesn't get fucked up
+    cmd="bluetoothctl system-alias '$NAME'"
+    eval "$cmd"
 }
 
 startServices(){
