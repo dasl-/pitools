@@ -126,11 +126,6 @@ cloneOrPullRepo(){
     local repo_path="$1"
     local clone_url="$2"
 
-    if [[ ${SKIP_CLONE_AND_PULL} == "true" ]]; then
-        info "Skipping clone and pull of $repo_path ..."
-        return
-    fi
-
     mkdir -p "$BASE_DIR"
     if [ ! -d "$repo_path" ]
     then
