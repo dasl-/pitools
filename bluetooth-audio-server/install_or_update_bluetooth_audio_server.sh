@@ -101,7 +101,7 @@ After=avahi-daemon.service
 After=bluetooth.service
 
 [Service]
-ExecStart=btagent --capability=NoInputNoOutput $pin_arg 
+ExecStart=bt-agent --capability=NoInputNoOutput $pin_arg
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog
