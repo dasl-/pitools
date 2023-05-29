@@ -37,7 +37,7 @@ main(){
 }
 
 parseOpts(){
-    while getopts ":d:n:p:" opt; do
+    while getopts ":d:n:p:h" opt; do
         case ${opt} in
             d)
                 BASE_DIR=${OPTARG%/}  # remove trailing slash if present
