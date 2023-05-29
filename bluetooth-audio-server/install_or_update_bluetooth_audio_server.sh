@@ -32,6 +32,7 @@ main(){
     installCornrow
     configureBluetoothPin
     updateBluetoothConfig
+    startServices
 
     info "Success!"
 }
@@ -83,6 +84,7 @@ installCornrow(){
 }
 
 configureBluetoothPin(){
+    info "Configuring bluetooth PIN..."
     local pin_arg=''
 
     # If a blank pin was given, running btagent should be a no-op
@@ -135,7 +137,7 @@ EOF
 }
 
 startServices(){
-    info "Starting cornrow service ..."
+    info "Starting cornrow and pitools-bluetooth-pin services..."
     sudo systemctl enable pitools-bluetooth-pin.service
     sudo systemctl unmask cornrowd.service
     sudo systemctl enable cornrowd.service
