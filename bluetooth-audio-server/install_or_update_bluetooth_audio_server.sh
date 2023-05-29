@@ -69,9 +69,9 @@ installBtSpeaker(){
     info "Installing bt-speaker..."
 
     # Add btspeaker user if not exist already
-    id -u btspeaker &>/dev/null || useradd btspeaker -G audio -d /opt/bt_speaker
+    id -u btspeaker &>/dev/null || sudo useradd btspeaker -G audio -d /opt/bt_speaker
     # Also add user to bluetooth group if it exists (required in debian stretch)
-    getent group bluetooth &>/dev/null && usermod -a -G bluetooth btspeaker
+    getent group bluetooth &>/dev/null && sudo usermod -a -G bluetooth btspeaker
 
     # Give the btspeaker user passwordless sudo for running hciconfig commands
     if ! sudo grep -q '^btspeaker ALL=(ALL) NOPASSWD: ALL' /etc/sudoers ; then
