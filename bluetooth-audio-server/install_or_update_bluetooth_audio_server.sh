@@ -3,7 +3,7 @@
 set -euo pipefail -o errtrace
 
 BASE_DIR=$HOME
-NAME=''
+NAME=$(hostname)
 PIN=''
 CONFIG=/boot/config.txt
 
@@ -16,9 +16,9 @@ usage(){
     echo "Installs or updates a bluetooth audio server on a raspberry pi. Uses cornrow: https://github.com/mincequi/cornrow"
     echo "  -d BASE_DIRECTORY : Base directory in which to download files. Trailing slash optional."
     echo "                      Defaults to $BASE_DIR."
-    echo "  -n NAME           : The name the service will advertise to iTunes."
-    echo "                      Use %h for the hostname and %H for the Hostname. Defaults to %H."
-    echo "  -p PIN            : The pin to use for bluetooth connections, e.g. 1234. Leave blank or omit for no pin."
+    echo "  -n NAME           : The name the bluetooth server will advertise."
+    echo "                      Defaults to the hostname: $NAME"
+    echo "  -p PIN            : The PIN to use for bluetooth connections, e.g. 1234. Default is no PIN."
     exit 1
 }
 
