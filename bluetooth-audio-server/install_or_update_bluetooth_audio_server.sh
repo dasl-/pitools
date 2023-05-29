@@ -40,6 +40,7 @@ parseOpts(){
         case ${opt} in
             d)
                 BASE_DIR=${OPTARG%/}  # remove trailing slash if present
+                BT_SPEAKER_REPO_PATH="$BASE_DIR""/bt-speaker"
                 ;;
             n) NAME=${OPTARG} ;;
             p) PIN=${OPTARG} ;;
