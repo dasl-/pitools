@@ -97,9 +97,10 @@ cat <<-EOF | sudo tee /etc/systemd/system/bt-speaker.service >/dev/null
 [Unit]
 Description="Simple bluetooth speaker for the Raspberry Pi"
 After=sound.target
-Requires=avahi-daemon.service bluetooth.service
+Requires=avahi-daemon.service bluetooth.service hciuart.service
 After=avahi-daemon.service
 After=bluetooth.service
+After=hciuart.service
 
 [Service]
 WorkingDirectory=$BT_SPEAKER_REPO_PATH
