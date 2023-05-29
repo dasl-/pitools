@@ -125,7 +125,7 @@ updateBluetoothConfig(){
         printf "\n[General]\nJustWorksRepairing = always\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
     fi
 
-    bluetoothctl system-alias \'"$NAME"\'
+    bluetoothctl system-alias "$NAME"
 
     if [ -n "${PIN}" ]; then
     cat <<-EOF | sudo tee "$PIN_FILE" >/dev/null
