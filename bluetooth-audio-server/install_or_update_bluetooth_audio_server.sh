@@ -103,7 +103,8 @@ After=bluetooth.service
 [Service]
 ExecStart=bt-agent --capability=NoInputNoOutput $pin_arg
 Restart=on-failure
-KillSignal=SIGKILL # The default SIGTERM merely causes bt-agent to re-read the PIN file
+# The default SIGTERM merely causes bt-agent to re-read the PIN file:
+KillSignal=SIGKILL
 StandardOutput=syslog
 StandardError=syslog
 
