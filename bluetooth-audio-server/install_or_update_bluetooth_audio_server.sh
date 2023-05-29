@@ -7,13 +7,12 @@ NAME=$(hostname)
 PIN=''
 CONFIG=/boot/config.txt
 
-DOWNLOAD_DIR="$BASE_DIR""/cornrow"
-CORNROW_PACKAGE_URL='https://github.com/mincequi/cornrow/releases/download/v0.8.1/cornrowd_0.8.1_armhf.deb'
-PIN_FILE='/etc/bluetooth/pin.conf'
+BT_SPEAKER_REPO_PATH="$BASE_DIR""/bt-speaker"
+BT_SPEAKER_CLONE_URL=git@github.com:dasl-/bt-speaker.git
 
 usage(){
     echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-n <NAME>] [-p <PIN>]"
-    echo "Installs or updates a bluetooth audio server on a raspberry pi. Uses cornrow: https://github.com/mincequi/cornrow"
+    echo "Installs or updates a bluetooth audio server on a raspberry pi. Uses bt-speaker: https://github.com/dasl-/bt-speaker"
     echo "  -d BASE_DIRECTORY : Base directory in which to download files. Trailing slash optional."
     echo "                      Defaults to $BASE_DIR."
     echo "  -n NAME           : The name the bluetooth server will advertise."
@@ -28,9 +27,8 @@ main(){
     parseOpts "$@"
 
     updatePackages
-
-    installCornrow
-    configureBluetoothPin
+    installBtSpeaker
+    configureBtSpeaker
     updateBluetoothConfig
     startServices
 
@@ -61,56 +59,87 @@ parseOpts(){
 updatePackages(){
     info "Updating and installing packages..."
     sudo apt update
-    sudo apt -y install bluez-tools # gives us bt-agent
+    # See: https://github.com/dasl-/bt-speaker/blob/master/install.sh
+    sudo apt -y install git bluez python3 python3-gi python3-gi-cairo python3-cffi python3-dbus python3-alsaaudio sound-theme-freedesktop vorbis-tools
     sudo apt -y full-upgrade
 }
 
-# See: https://github.com/mincequi/cornrow/#installation-binary
-installCornrow(){
-    info "Removing cornrow package if installed..."
-    # Remove it first to ensure the systemd unit files get created freshly. This is important because we 
-    # modify them later, so it's easier to assume they have an "untouched" state before we modify them.
-    sudo apt remove -y cornrowd
+# See: https://github.com/dasl-/bt-speaker/blob/master/install.sh
+installBtSpeaker(){
+    info "Installing bt-speaker..."
 
-    info "Downloading and installing cornrow package..."
-    mkdir -p "$DOWNLOAD_DIR"
-    pushd "$DOWNLOAD_DIR"
-    wget --no-clobber "$CORNROW_PACKAGE_URL"
-    sudo apt install ./"$(basename $CORNROW_PACKAGE_URL)"
-    popd
+    # Add btspeaker user if not exist already
+    id -u btspeaker &>/dev/null || useradd btspeaker -G audio -d /opt/bt_speaker
+    # Also add user to bluetooth group if it exists (required in debian stretch)
+    getent group bluetooth &>/dev/null && usermod -a -G bluetooth btspeaker
 
-    # Ensure cornrow can be active if and only if the bluetooth server is protected by the PIN.
-    printf "\n[Unit]\nAfter=pitools-bluetooth-pin.service\nBindsTo=pitools-bluetooth-pin.service\n" | sudo tee --append /lib/systemd/system/cornrowd.service >/dev/null
-}
-
-configureBluetoothPin(){
-    info "Configuring bluetooth PIN..."
-    local pin_arg=''
-
-    # If a blank pin was given, running btagent should be a no-op
-    if [ -n "${PIN}" ]; then
-         pin_arg="--pin=$PIN_FILE"
+    # Give the btspeaker user passwordless sudo for running hciconfig commands
+    if ! sudo grep -q '^btspeaker ALL=(ALL) NOPASSWD: ALL' /etc/sudoers ; then
+        printf "\nbtspeaker ALL=(ALL) NOPASSWD: ALL\n" | sudo tee --append /etc/sudoers >/dev/null
     fi
 
-    cat <<-EOF | sudo tee /etc/systemd/system/pitools-bluetooth-pin.service >/dev/null
+    cloneOrPullRepo "$BT_SPEAKER_REPO_PATH" "$BT_SPEAKER_CLONE_URL"
+
+    mkdir -p /etc/bt_speaker/hooks
+    cp -n "$BT_SPEAKER_REPO_PATH"/config.ini.default /etc/bt_speaker/config.ini
+    cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/connect /etc/bt_speaker/hooks/connect
+    cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/disconnect /etc/bt_speaker/hooks/disconnect
+    cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/startup /etc/bt_speaker/hooks/startup
+    cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/track /etc/bt_speaker/hooks/track
+
+    local sspmode='1'
+    if [ -n "${PIN}" ]; then
+        sspmode='0'
+    fi
+
+cat <<-EOF | sudo tee /etc/systemd/system/bt-speaker.service >/dev/null
 [Unit]
-Description=Ensures clients must enter a pin to connect to the bluetooth server
+Description="Simple bluetooth speaker for the Raspberry Pi"
 After=sound.target
 Requires=avahi-daemon.service bluetooth.service
 After=avahi-daemon.service
 After=bluetooth.service
 
 [Service]
-ExecStart=bt-agent --capability=NoInputNoOutput $pin_arg
-Restart=on-failure
-# The default SIGTERM merely causes bt-agent to re-read the PIN file:
-KillSignal=SIGKILL
-StandardOutput=syslog
-StandardError=syslog
+WorkingDirectory=$BT_SPEAKER_REPO_PATH
+# Enable PIN authorization for the bluetooth server
+ExecStartPre=sudo hciconfig hci0 sspmode $sspmode
+ExecStartPre=sudo hciconfig hci0 reset
+ExecStart=$BT_SPEAKER_REPO_PATH/bt_speaker.py
+Restart=always
+User=btspeaker
 
 [Install]
 WantedBy=multi-user.target
 EOF
+}
+
+# See: https://github.com/dasl-/bt-speaker/tree/master#config
+configureBtSpeaker(){
+    info "Configuring bt-speaker..."
+    if [ -n "${PIN}" ]; then
+        sudo sed /etc/bt_speaker/config.ini -i -e "s/^pin_code = .*/pin_code = $PIN/"
+    fi
+}
+
+cloneOrPullRepo(){
+    local repo_path="$1"
+    local clone_url="$2"
+
+    if [[ ${SKIP_CLONE_AND_PULL} == "true" ]]; then
+        info "Skipping clone and pull of $repo_path ..."
+        return
+    fi
+
+    mkdir -p "$BASE_DIR"
+    if [ ! -d "$repo_path" ]
+    then
+        info "Cloning repo: $clone_url into $repo_path ..."
+        git clone "$clone_url" "$repo_path"
+    else
+        info "Pulling repo in $repo_path ..."
+        git -C "$repo_path" pull
+    fi
 }
 
 updateBluetoothConfig(){
@@ -121,31 +150,25 @@ updateBluetoothConfig(){
         printf "\n[General]\nClass = 0x040414\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
     fi
 
-    # JustWorksRepairing = always : I was having issues reconnecting if the client "forgot" the server. This fixes it. 
-    #                               See: https://github.com/mincequi/cornrow/issues/27
-    if ! grep -q '^JustWorksRepairing = always' /etc/bluetooth/main.conf ; then
-        printf "\n[General]\nJustWorksRepairing = always\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
+    # Keep it discoverable
+    if ! grep -q '^DiscoverableTimeout = 0' /etc/bluetooth/main.conf ; then
+        printf "\n[General]\nDiscoverableTimeout = 0\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
     fi
 
     bluetoothctl system-alias "$NAME"
-
-    if [ -n "${PIN}" ]; then
-    cat <<-EOF | sudo tee "$PIN_FILE" >/dev/null
-* $PIN
-EOF
-    else
-        sudo rm -rf "$PIN_FILE"
-    fi
 }
 
 startServices(){
-    info "Starting cornrow and pitools-bluetooth-pin services..."
-    sudo systemctl enable pitools-bluetooth-pin.service
-    sudo systemctl unmask cornrowd.service
-    sudo systemctl enable cornrowd.service
+    info "Restarting bluetooth and bt-speaker services..."
+
+    sudo chown root:root /etc/systemd/system/bt-speaker.service
+    sudo chmod 644 /etc/systemd/system/bt-speaker.service
+    sudo systemctl enable /etc/systemd/system/bt-speaker.service
+
     sudo systemctl daemon-reload
-    sudo systemctl restart pitools-bluetooth-pin.service
-    sudo systemctl restart cornrowd.service
+
+    sudo systemctl restart bluetooth.service
+    sudo systemctl restart bt-speaker.service
 }
 
 fail(){
