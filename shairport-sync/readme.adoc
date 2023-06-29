@@ -1,0 +1,26 @@
+# readme
+:toc:
+:toclevels: 5
+
+## dsh to install or update shairport sync on multiple pis:
+....
+dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@piwall10.local,pi@kitchen.local,pi@bedroom.local 'NAME="pi %h"; [[ $(hostname) == pi* ]] && NAME=$(hostname | sed "s/[0-9]\+$//") ; cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/shairport-sync/install_or_update_shairport_sync.sh -d /home/pi/development -n "$NAME" -b development' ; dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@piwall10.local,pi@kitchen.local,pi@bedroom.local 'shairport-sync -V ; nqptp -V' | sort -k 2 | column -t
+....
+
+To ensure the shairport-sync config file is replaced, you must delete the old one:
+....
+dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@piwall10.local,pi@kitchen.local,pi@bedroom.local 'sudo rm /etc/shairport-sync.conf'
+....
+
+## raspberry pi sound quality
+https://forums.raspberrypi.com/viewtopic.php?f=29&t=195178
+
+## Issues we've seen before
+### drop outs in piwall receiver audio every ~15 minutes
+When playing pandora via firefox on mac OS, I experienced audio drop outs that lasted ~4 seconds. These drop outs occurred approximately every 15 minutes. Checking shairport-sync logs, I found big spikes in the values for `Net Sync PPM` and `All Sync PPM` when these drop outs occurred. See https://gist.github.com/dasl-/3c056c8c9d12fdda183fcbf7a89c4643[logs], in particular the spikes at ~15 minute intervals (https://gist.github.com/dasl-/3c056c8c9d12fdda183fcbf7a89c4643#file-gistfile1-txt-L35[1], https://gist.github.com/dasl-/3c056c8c9d12fdda183fcbf7a89c4643#file-gistfile1-txt-L147[2], https://gist.github.com/dasl-/3c056c8c9d12fdda183fcbf7a89c4643#file-gistfile1-txt-L260[3]). Interestingly, I wasn't seeing spikes in the values of `Missing`, `Late`, or `Too Late`, which I had often seen when debugging similar issues in the past.
+
+I realized that my https://github.com/dasl-/piwall2/[piwall] receiver software, which is running on the same raspberry pi as shairport-sync, broadcasts a new screensaver video approximately every 15 minutes. I checked the receiver logs on the raspberry pi, and it showed that a new screensaver video broadcast was starting at the exact time that these audio drop outs had occurred.
+
+This was strange: I had not known the piwall software to cause issues with shairport-sync before. Had this sort of problem been occurring all along, or did it start only recently?
+
+I'm not sure exactly what the timeline was, but perhaps 1 to 3 weeks after I first noticed these drop outs, I had a https://github.com/dasl-/piwall2/blob/main/docs/issues_weve_seen_before.adoc#recurrence-on-2023-06-28[networking issue related to the piwall]. After solving that issue (by restarting a single bad piwall raspberry pi), I could no longer reproduce these shairport-sync audio drop outs. I tried to reproduce them by restarting the broadcaster process, which means a new screensaver will get sent to all receivers. Thus, I believe the shairport-sync audio drop outs were caused by the networking issues stemming from a single bad raspberry pi that needed to be restarted. Perhaps the audio drop outs were a precursor to more complete failure of the network.
