@@ -78,12 +78,12 @@ installBtSpeaker(){
 
     cloneOrPullRepo "$BT_SPEAKER_REPO_PATH" "$BT_SPEAKER_CLONE_URL"
 
-    mkdir -p /etc/bt_speaker/hooks
-    cp -n "$BT_SPEAKER_REPO_PATH"/config.ini.default /etc/bt_speaker/config.ini
-    cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/connect /etc/bt_speaker/hooks/connect
-    cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/disconnect /etc/bt_speaker/hooks/disconnect
-    cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/startup /etc/bt_speaker/hooks/startup
-    cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/track /etc/bt_speaker/hooks/track
+    sudo mkdir -p /etc/bt_speaker/hooks
+    sudo cp -n "$BT_SPEAKER_REPO_PATH"/config.ini.default /etc/bt_speaker/config.ini
+    sudo cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/connect /etc/bt_speaker/hooks/connect
+    sudo cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/disconnect /etc/bt_speaker/hooks/disconnect
+    sudo cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/startup /etc/bt_speaker/hooks/startup
+    sudo cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/track /etc/bt_speaker/hooks/track
 
 cat <<-EOF | sudo tee /etc/systemd/system/bt-speaker.service >/dev/null
 [Unit]
