@@ -133,6 +133,13 @@ updateBluetoothConfig(){
         printf "\n[General]\nClass = 0x040414\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
     fi
 
+    # Keep it discoverable for forever, because setting a limit on DiscoverableTimeout doesn't work (it remains discoverable forever).
+    # So, keep it discoverable forever and manually toggle it back to not discoverable. For some reason doing the manual
+    # toggle works, but relying on the timeout does not.
+    if ! grep -q '^DiscoverableTimeout = 0' /etc/bluetooth/main.conf ; then
+        printf "\n[General]\nDiscoverableTimeout = 0\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
+    fi
+
     # Ensure that if the NAME has spaces, it doesn't get fucked up
     cmd="bluetoothctl system-alias '$NAME'"
     eval "$cmd"
