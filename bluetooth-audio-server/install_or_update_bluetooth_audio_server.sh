@@ -140,6 +140,12 @@ updateBluetoothConfig(){
         printf "\n[General]\nDiscoverableTimeout = 0\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
     fi
 
+    # Enable JustWorksRepairing. This solves some reconnection bugs, e.g. if the iOS client "Forgets" the server,
+    # it will fail to reconnect unless JustWorksRepairing is enabled.
+    if ! grep -q '^JustWorksRepairing = always' /etc/bluetooth/main.conf ; then
+        printf "\n[General]\nJustWorksRepairing = always\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
+    fi
+
     # Ensure that if the NAME has spaces, it doesn't get fucked up
     cmd="bluetoothctl system-alias '$NAME'"
     eval "$cmd"
