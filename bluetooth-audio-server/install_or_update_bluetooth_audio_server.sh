@@ -4,20 +4,18 @@ set -euo pipefail -o errtrace
 
 BASE_DIR=$HOME
 NAME=$(hostname)
-PIN=''
 CONFIG=/boot/config.txt
 
 BT_SPEAKER_REPO_PATH="$BASE_DIR""/bt-speaker"
 BT_SPEAKER_CLONE_URL=git@github.com:dasl-/bt-speaker.git
 
 usage(){
-    echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-n <NAME>] [-p <PIN>]"
+    echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-n <NAME>]"
     echo "Installs or updates a bluetooth audio server on a raspberry pi. Uses bt-speaker: https://github.com/dasl-/bt-speaker"
     echo "  -d BASE_DIRECTORY : Base directory in which to download files. Trailing slash optional."
     echo "                      Defaults to $BASE_DIR."
     echo "  -n NAME           : The name the bluetooth server will advertise."
     echo "                      Defaults to the hostname: $NAME"
-    echo "  -p PIN            : The PIN to use for bluetooth connections, e.g. 1234. Default is no PIN."
     exit 1
 }
 
@@ -36,14 +34,13 @@ main(){
 }
 
 parseOpts(){
-    while getopts ":d:n:p:h" opt; do
+    while getopts ":d:n:h" opt; do
         case ${opt} in
             d)
                 BASE_DIR=${OPTARG%/}  # remove trailing slash if present
                 BT_SPEAKER_REPO_PATH="$BASE_DIR""/bt-speaker"
                 ;;
             n) NAME=${OPTARG} ;;
-            p) PIN=${OPTARG} ;;
             \?)
                 warn "Invalid option: -$OPTARG"
                 usage
@@ -61,7 +58,7 @@ updatePackages(){
     info "Updating and installing packages..."
     sudo apt update
     # See: https://github.com/dasl-/bt-speaker/blob/master/install.sh
-    sudo apt -y install git bluez python3 python3-gi python3-gi-cairo python3-cffi python3-dbus python3-alsaaudio sound-theme-freedesktop vorbis-tools
+    sudo apt -y install git bluez python3 python3-gi python3-gi-cairo python3-cffi python3-dbus sound-theme-freedesktop vorbis-tools
     sudo apt -y full-upgrade
 }
 
@@ -88,40 +85,29 @@ installBtSpeaker(){
     cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/startup /etc/bt_speaker/hooks/startup
     cp -n "$BT_SPEAKER_REPO_PATH"/hooks.default/track /etc/bt_speaker/hooks/track
 
-    local sspmode='1'
-    if [ -n "${PIN}" ]; then
-        sspmode='0'
-    fi
-
 cat <<-EOF | sudo tee /etc/systemd/system/bt-speaker.service >/dev/null
 [Unit]
 Description="Simple bluetooth speaker for the Raspberry Pi"
 After=sound.target
-Requires=avahi-daemon.service bluetooth.service hciuart.service
+Requires=avahi-daemon.service bluetooth.service
 After=avahi-daemon.service
 After=bluetooth.service
-After=hciuart.service
 
 [Service]
 WorkingDirectory=$BT_SPEAKER_REPO_PATH
-# Enable PIN authorization for the bluetooth server
-ExecStartPre=sudo hciconfig hci0 sspmode $sspmode
-ExecStartPre=sudo hciconfig hci0 reset
 ExecStart=$BT_SPEAKER_REPO_PATH/bt_speaker.py
 Restart=always
 User=btspeaker
 
 [Install]
-WantedBy=multi-user.target
+# See: https://unix.stackexchange.com/a/604801/574555
+WantedBy=bluetooth.target
 EOF
 }
 
 # See: https://github.com/dasl-/bt-speaker/tree/master#config
 configureBtSpeaker(){
     info "Configuring bt-speaker..."
-    if [ -n "${PIN}" ]; then
-        sudo sed /etc/bt_speaker/config.ini -i -e "s/^pin_code = .*/pin_code = $PIN/"
-    fi
 }
 
 cloneOrPullRepo(){
@@ -147,9 +133,9 @@ updateBluetoothConfig(){
         printf "\n[General]\nClass = 0x040414\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
     fi
 
-    # Keep it discoverable
-    if ! grep -q '^DiscoverableTimeout = 0' /etc/bluetooth/main.conf ; then
-        printf "\n[General]\nDiscoverableTimeout = 0\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
+    # Keep it discoverable for 30s
+    if ! grep -q '^DiscoverableTimeout = 30' /etc/bluetooth/main.conf ; then
+        printf "\n[General]\nDiscoverableTimeout = 30\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
     fi
 
     # Ensure that if the NAME has spaces, it doesn't get fucked up
