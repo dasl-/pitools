@@ -133,11 +133,6 @@ updateBluetoothConfig(){
         printf "\n[General]\nClass = 0x040414\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
     fi
 
-    # Keep it discoverable for 30s
-    if ! grep -q '^DiscoverableTimeout = 30' /etc/bluetooth/main.conf ; then
-        printf "\n[General]\nDiscoverableTimeout = 30\n" | sudo tee --append /etc/bluetooth/main.conf >/dev/null
-    fi
-
     # Ensure that if the NAME has spaces, it doesn't get fucked up
     cmd="bluetoothctl system-alias '$NAME'"
     eval "$cmd"
