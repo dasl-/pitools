@@ -191,6 +191,10 @@ buildShairportSync(){
 
     # pull again because if we were on another branch before, we need to pull after checking out the correct branch
     cloneOrPullRepo "$SHAIRPORT_SYNC_REPO_PATH" "$SHAIRPORT_SYNC_CLONE_URL"
+
+    # Apply logarithmic volume patch
+    git apply <(curl https://patch-diff.githubusercontent.com/raw/mikebrady/shairport-sync/pull/1699.patch)
+
     autoreconf -fi
 
     # Use CFLAGS to get more informative coredumps: https://github.com/mikebrady/shairport-sync/issues/1479
@@ -199,6 +203,10 @@ buildShairportSync(){
     make clean # maybe this is necessary? https://github.com/mikebrady/shairport-sync/issues/1571#issuecomment-1312445078
     make -j
     sudo make install
+
+    # undo local changes (logarithmic volume patch)
+    git checkout -- .
+
     popd
 
     # Enable core dumps: https://github.com/mikebrady/shairport-sync/issues/1479
@@ -213,7 +221,7 @@ buildShairportSync(){
 
 # Only add configuration file if it is not already present
 # See sample raspberry pi config file:
-# https://github.com/mikebrady/shairport-sync/blob/development/BUILDFORAP2.md#configure
+# https://github.com/mikebrady/shairport-sync/blob/development/ADVANCED%20TOPICS/InitialConfiguration.md#raspberry-pi
 #
 # My deviation in volume settings from the sample config file is intentional :)
 maybeConfigureShairportSync(){
@@ -222,24 +230,30 @@ maybeConfigureShairportSync(){
     local config_file_path='/etc/shairport-sync.conf'
     if diff -qs $config_file_path /etc/shairport-sync.conf.sample || [ ! -f $config_file_path ] ; then
         info "Configuring shairport-sync..."
-        name_string=''
+        local name_string=''
         if [ -n "${NAME}" ]; then
             name_string='name = "'"$NAME"'";'
+        fi
+
+        local mixer_control_name='PCM'
+        if [[ $(hostname) == piwall* ]]; then
+            # piwall hosts are on an older version of raspbian OS where the mixer name is still Headphone
+            mixer_control_name='Headphone'
         fi
         cat <<-EOF | sudo tee $config_file_path >/dev/null
 general =
 {
   // More info about volume on pis:
   // https://github.com/dasl-/piwall2/blob/d357c3766979d473f8135448ccf36935a4fa608a/piwall2/volumecontroller.py#L22
-  volume_range_db = 40; // make volume line up approximately with my own logarithmic volume algorithm on pis
   volume_max_db = 0.0; // prevent clipping on raspberry pis
+  volume_control_profile = "logarithmic"
   $name_string
 };
 
 alsa =
 {
   output_device = "hw:0"
-  mixer_control_name = "PCM";
+  mixer_control_name = "$mixer_control_name";
 
   // Fix issue where multiroom audio is sometimes a few milliseconds out of sync with Realtime Audio streams
   // See: https://github.com/mikebrady/shairport-sync/issues/1563#issuecomment-1328166125
