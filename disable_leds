@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+set -euo pipefail -o errtrace
+
+CONFIG=/boot/config.txt
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    info "\\nDisabling raspberry pi LEDs..."
+
+    # https://www.jeffgeerling.com/blogs/jeff-geerling/controlling-pwr-act-leds-raspberry-pi
+    printf "\n# Disable the ACT LED.\ndtparam=act_led_trigger=none\ndtparam=act_led_activelow=off\n" | sudo tee --append $CONFIG >/dev/null
+    printf "\n# Disable the PWR LED.\ndtparam=pwr_led_trigger=default-on\ndtparam=pwr_led_activelow=off\n" | sudo tee --append $CONFIG >/dev/null
+
+    info "\\nDone, please reboot for the LEDs to be disabled."
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"
