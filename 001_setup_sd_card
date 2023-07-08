@@ -19,7 +19,7 @@ def parseArgs():
         help='Disk number via `diskutil list`. This disk will be overwritten, so don\'t get this wrong.')
     parser.add_argument('--disk-image', dest='disk_image', action='store', required = True,
         help='Path to disk image. Download Raspberry Pi OS Lite image from https://www.raspberrypi.org/software/operating-systems/')
-    parser.add_argument('--device-path', dest='device_path', action='store', default='/Volumes/boot',
+    parser.add_argument('--device-path', dest='device_path', action='store', default='/Volumes/bootfs',
         help='Mounted volume path after SD card has been imaged.')
     parser.add_argument('--user-name', dest='user_name', action='store', required = True,
         help='User account to create')
