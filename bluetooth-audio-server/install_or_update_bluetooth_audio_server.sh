@@ -113,15 +113,16 @@ configureBtSpeaker(){
 cloneOrPullRepo(){
     local repo_path="$1"
     local clone_url="$2"
+    local git_cmd='GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git'
 
     mkdir -p "$BASE_DIR"
     if [ ! -d "$repo_path" ]
     then
         info "Cloning repo: $clone_url into $repo_path ..."
-        git clone "$clone_url" "$repo_path"
+        "$git_cmd" clone "$clone_url" "$repo_path"
     else
         info "Pulling repo in $repo_path ..."
-        git -C "$repo_path" pull
+        "$git_cmd" -C "$repo_path" pull
     fi
 }
 
