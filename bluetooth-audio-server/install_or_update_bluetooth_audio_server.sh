@@ -147,7 +147,7 @@ updateBluetoothConfig(){
     fi
 
     # Ensure that if the NAME has spaces, it doesn't get fucked up
-    cmd="bluetoothctl system-alias '$NAME'"
+    cmd="sudo bluetoothctl system-alias '$NAME'"
     eval "$cmd"
 }
 

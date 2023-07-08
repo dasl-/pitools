@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+
+set -euo pipefail -o errtrace
+
+CONFIG=/boot/config.txt
+HOST_CSV=false
+
+usage(){
+    echo "Usage: $(basename "${0}") -l <CSV_PI_HOSTNAMES>"
+    echo "Run this from laptop."
+    echo "  -l CSV_PI_HOSTNAMES"
+
+    exit 1
+}
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    parseOpts "$@"
+
+    for host in $(echo $HOST_CSV | tr , ' '); do
+        backupHost "$host"
+    done
+
+    info "\\nDone!"
+}
+
+parseOpts(){
+    while getopts ":l:h" opt; do
+        case ${opt} in
+            l) HOST_CSV=${OPTARG} ;;
+            \?)
+                warn "Invalid option: -$OPTARG"
+                usage
+                ;;
+            :)
+                warn "Option -$OPTARG requires an argument."
+                usage
+                ;;
+            *) usage ;;
+          esac
+    done
+
+    # Validation
+    local has_usage_errors
+    has_usage_errors=false
+    if [ -z "$HOST_CSV" ]; then
+        has_usage_errors=true
+        warn "Please supply a list of pi hostnames with the flag: -l"
+    fi
+    if [[ $has_usage_errors == "true" ]]; then
+        usage
+    fi
+}
+
+backupHost(){
+    local host=$1
+    local pretty_host
+    pretty_host=$(echo "$host" | tr . _)
+
+    local files="/home/pi/.zsh_history"
+    if [[ $host == pifi* ]]; then
+        files="$files /home/pi/.sqlite_history /home/pi/development/pifi/config.json /home/pi/development/pifi/pifi.db"
+    fi
+
+    mkdir -p "$pretty_host"
+    pushd "$pretty_host"
+    for file in $files; do
+        info "\\nBacking up $file from $host..."
+        scp -o StrictHostKeyChecking=no -o 'UserKnownHostsFile /dev/null' "pi@$host":"$file" .
+    done
+    popd
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"
