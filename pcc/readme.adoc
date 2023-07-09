@@ -4,6 +4,13 @@
 
 ## dsh to install or update pcc on multiple pis:
 Controller on study.local.
+
+Install pcc and install dependencies:
 ....
 dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@piwall10.local,pi@kitchen.local,pi@bedroom.local 'TYPE="receiver"; [[ $(hostname) == study ]] && TYPE="all" ; cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/pcc/install_or_update_pcc.sh -d /home/pi/development -t "$TYPE"' ; dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@piwall10.local,pi@kitchen.local,pi@bedroom.local "sudo systemctl status 'pcc_*'"
+....
+
+Install pcc and skip installation of dependencies (faster: deps aren't always necessary on subsequent runs):
+....
+dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@piwall10.local,pi@kitchen.local,pi@bedroom.local 'TYPE="receiver"; [[ $(hostname) == study ]] && TYPE="all" ; cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/pcc/install_or_update_pcc.sh -d /home/pi/development -t "$TYPE" -s' ; dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@piwall10.local,pi@kitchen.local,pi@bedroom.local "sudo systemctl status 'pcc_*'"
 ....
