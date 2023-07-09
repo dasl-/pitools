@@ -4,6 +4,7 @@ set -euo pipefail -o errtrace
 
 BASE_DIR=$HOME
 TYPE=false
+SKIP_DEPENDENCY_INSTALLATION=false
 
 usage(){
     echo "Usage: $(basename "${0}") [-d <BASE_DIRECTORY>] [-t <TYPE>]"
@@ -11,6 +12,7 @@ usage(){
     echo "  -d BASE_DIRECTORY : Base directory in which to download files. Trailing slash optional."
     echo "                      Defaults to $BASE_DIR."
     echo "  -t TYPE           : Installation type: either 'controller', 'receiver', or 'all'"
+    echo "  -s                : Skip dependency installation step (faster: deps aren't always necessary on subsequent runs)"
     echo "  -h                : Print this help message"
     exit 1
 }
@@ -22,7 +24,9 @@ main(){
 
     cloneOrPullRepo "$BASE_DIR/pcc" "git@github.com:dasl-/pcc.git"
     pushd "$BASE_DIR/pcc"
-    ./install/install_dependencies.sh -t $TYPE
+    if [[ ${SKIP_DEPENDENCY_INSTALLATION} == "false" ]]; then
+        ./install/install_dependencies.sh -t $TYPE
+    fi
     ./install/install.sh -t $TYPE
     popd
 
@@ -30,13 +34,12 @@ main(){
 }
 
 parseOpts(){
-    while getopts ":d:t:h" opt; do
+    while getopts ":d:t:hs" opt; do
         case ${opt} in
             d)
-                BASE_DIR=${OPTARG%/}  # remove trailing slash if present
-                BT_SPEAKER_REPO_PATH="$BASE_DIR""/bt-speaker"
-                ;;
+                BASE_DIR=${OPTARG%/} ;; # remove trailing slash if present
             t) TYPE=${OPTARG} ;;
+            s) SKIP_DEPENDENCY_INSTALLATION=true ;;
             \?)
                 warn "Invalid option: -$OPTARG"
                 usage
