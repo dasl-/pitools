@@ -246,7 +246,7 @@ general =
   // More info about volume on pis:
   // https://github.com/dasl-/piwall2/blob/d357c3766979d473f8135448ccf36935a4fa608a/piwall2/volumecontroller.py#L22
   volume_max_db = 0.0; // prevent clipping on raspberry pis
-  volume_control_profile = "logarithmic"
+  volume_control_profile = "dasl_tapered"
   $name_string
 };
 
