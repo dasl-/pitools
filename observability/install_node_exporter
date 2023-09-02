@@ -2,7 +2,7 @@
 
 set -euo pipefail -o errtrace
 INSTALL_DIR="/home/pi/observability"
-NODE_EXPORTER_VERSION='1.6.1'
+NODE_EXPORTER_VERSION='1.6.1.linux-armv7'
 
 main(){
     trap 'fail $? $LINENO' ERR
@@ -22,8 +22,8 @@ downloadBinary(){
     info "\\nDownloading node_exporter binary..."
     mkdir -p $INSTALL_DIR
     pushd $INSTALL_DIR
-    wget "https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-$NODE_EXPORTER_VERSION.linux-armv7.tar.gz"
-    tar xvfz "node_exporter-$NODE_EXPORTER_VERSION-armv7.tar.gz"
+    wget "https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
+    tar xvfz "node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
     popd
 }
 
@@ -42,7 +42,7 @@ Wants=network-online.target
 
 [Service]
 Environment=HOME=/root
-ExecStart=/home/pi/observability/node_exporter-$NODE_EXPORTER_VERSION-armv7/node_exporter
+ExecStart=/home/pi/observability/node_exporter-$NODE_EXPORTER_VERSION/node_exporter
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog
