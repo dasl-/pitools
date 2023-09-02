@@ -41,7 +41,8 @@ Wants=network-online.target
 
 [Service]
 Environment=HOME=/root
-ExecStart=$INSTALL_DIR/node_exporter-$NODE_EXPORTER_VERSION/node_exporter
+# The systemd / processes collectors are suggested to be enabled: https://github.com/rfmoz/grafana-dashboards#node-exporter-full
+ExecStart=$INSTALL_DIR/node_exporter-$NODE_EXPORTER_VERSION/node_exporter --collector.systemd --collector.processes
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog
