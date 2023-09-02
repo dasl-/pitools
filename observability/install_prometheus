@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+
+set -euo pipefail -o errtrace
+INSTALL_DIR="/home/pi/observability"
+VERSION_NUMBER='2.45.0'
+PROMETHEUS_VERSION="$VERSION_NUMBER.linux-armv7"
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    # https://prometheus.io/docs/guides/node-exporter/#configuring-your-prometheus-instances
+    info "\\nInstalling prometheus..."
+
+    downloadBinary
+    setupSystemd
+
+    local prometheus_url
+    prometheus_url="http://$(hostname).local:9090/graph"
+    info "\\nFinished installing prometheus. Wait ~1 minute for it to be ready; then view metrics at: $prometheus_url"
+}
+
+downloadBinary(){
+    info "\\nDownloading prometheus binary..."
+    mkdir -p $INSTALL_DIR
+    pushd $INSTALL_DIR
+    rm -rf "prometheus-$PROMETHEUS_VERSION.tar.gz"
+    wget "https://github.com/prometheus/prometheus/releases/download/v$VERSION_NUMBER/prometheus-$PROMETHEUS_VERSION.tar.gz"
+    tar xvfz "prometheus-$PROMETHEUS_VERSION.tar.gz"
+    rm -rf "prometheus-$PROMETHEUS_VERSION.tar.gz"
+    popd
+}
+
+setupSystemd(){
+    info "\\nSetting up systemd..."
+
+cat <<-EOF | sudo tee /etc/systemd/system/prometheus.service >/dev/null
+[Unit]
+Description=prometheus
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=HOME=/root
+ExecStart=/home/pi/observability/prometheus-$PROMETHEUS_VERSION/prometheus
+Restart=on-failure
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=PROMETHEUS
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo chown root:root /etc/systemd/system/prometheus.service
+    sudo chmod 644 /etc/systemd/system/prometheus.service
+    sudo systemctl enable /etc/systemd/system/prometheus.service
+    sudo systemctl daemon-reload
+    sudo systemctl restart prometheus.service
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"

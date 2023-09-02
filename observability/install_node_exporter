@@ -2,7 +2,8 @@
 
 set -euo pipefail -o errtrace
 INSTALL_DIR="/home/pi/observability"
-NODE_EXPORTER_VERSION='1.6.1.linux-armv7'
+VERSION_NUMBER='1.6.1'
+NODE_EXPORTER_VERSION="$VERSION_NUMBER.linux-armv7"
 
 main(){
     trap 'fail $? $LINENO' ERR
@@ -23,7 +24,7 @@ downloadBinary(){
     mkdir -p $INSTALL_DIR
     pushd $INSTALL_DIR
     rm -rf "node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
-    wget "https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
+    wget "https://github.com/prometheus/node_exporter/releases/download/v$VERSION_NUMBER/node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
     tar xvfz "node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
     rm -rf "node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
     popd
