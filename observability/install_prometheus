@@ -50,21 +50,21 @@ scrape_configs:
 
     static_configs:
       - targets: [
-            "study.local:9100",
-            "pifi.local:9100",
-            "kitchen.local:9100",
-            "bedroom.local:9100",
-            "piwall.local:9100",
-            "piwall1.local:9100",
-            "piwall2.local:9100",
-            "piwall3.local:9100",
-            "piwall4.local:9100",
-            "piwall5.local:9100",
-            "piwall6.local:9100",
-            "piwall7.local:9100",
-            "piwall8.local:9100",
-            "piwall9.local:9100",
-            "piwall10.local:9100",
+            "study:9100",
+            "pifi:9100",
+            "kitchen:9100",
+            "bedroom:9100",
+            "piwall:9100",
+            "piwall1:9100",
+            "piwall2:9100",
+            "piwall3:9100",
+            "piwall4:9100",
+            "piwall5:9100",
+            "piwall6:9100",
+            "piwall7:9100",
+            "piwall8:9100",
+            "piwall9:9100",
+            "piwall10:9100",
         ]
 EOF
 }
