@@ -30,10 +30,6 @@ downloadBinary(){
 setupSystemd(){
     info "\\nSetting up systemd..."
 
-    sudo "$BASE_DIR/install/pifi_queue_service.sh"
-    sudo "$BASE_DIR/install/pifi_server_service.sh"
-    sudo "$BASE_DIR/install/pifi_websocket_server_service.sh"
-
 cat <<-EOF | sudo tee /etc/systemd/system/node_exporter.service >/dev/null
 [Unit]
 Description=node_exporter
