@@ -1,5 +1,8 @@
 # Observability
 
+:toc:
+:toclevels: 5
+
 ## Summary
 . Install node_exporter on all pis
 . install grafana and prometheus on one host: study.local
@@ -16,7 +19,7 @@ dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remot
 .. HTTP > Prometheus server URL: `http://localhost:9090`
 .. Interval behaviour > Scrape interval: `10s`
 .. Performance > Prometheus type: `Prometheus`
-. Add "Node Exporter Full[https://grafana.com/grafana/dashboards/1860-node-exporter-full/]" dashboard http://study.local:3000/dashboard/import :
+. Add https://grafana.com/grafana/dashboards/1860-node-exporter-full/["Node Exporter Full"] dashboard http://study.local:3000/dashboard/import :
 .. Import via grafana.com: `1860` (this is the dashboard ID)
 
 ## Files used
