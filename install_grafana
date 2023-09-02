@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+set -euo pipefail -o errtrace
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    # https://grafana.com/tutorials/install-grafana-on-raspberry-pi/#install-grafana
+    info "\\nInstalling grafana..."
+
+    info "\\nConfiguring apt source..."
+    wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+    local grafana_apt_source='deb https://packages.grafana.com/oss/deb stable main'
+    if ! sudo grep -q "^$grafana_apt_source" /etc/apt/sources.list.d/grafana.list ; then
+        echo "$grafana_apt_source" | sudo tee -a /etc/apt/sources.list.d/grafana.list
+    fi
+
+    info "\\nInstalling package..."
+    sudo apt-get update
+    sudo apt-get install -y grafana
+
+    info "\\nSetting up systemd..."
+    sudo systemctl enable grafana-server
+    sudo systemctl daemon-reload
+    sudo systemctl restart grafana-server
+
+    info "\\nFinished installing grafana."
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"
