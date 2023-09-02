@@ -1,5 +1,4 @@
 # Observability
-
 :toc:
 :toclevels: 5
 
