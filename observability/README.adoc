@@ -1,0 +1,25 @@
+# Observability
+
+## Summary
+1. Install node_exporter on all pis
+1. install grafana and prometheus on one host: study.local
+1. Access grafana at http://study.local:3000
+
+## node_exporter dsh install command
+....
+dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@kitchen.local,pi@bedroom.local,pi@piwall.local,pi@piwall1.local,pi@piwall2.local,pi@piwall3.local,pi@piwall4.local,pi@piwall5.local,pi@piwall6.local,pi@piwall7.local,pi@piwall8.local,pi@piwall9.local,pi@piwall10.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/observability/install_node_exporter' && sleep 5 && echo 'study,pifi,kitchen,bedroom,piwall,piwall1,piwall2,piwall3,piwall4,piwall5,piwall6,piwall7,piwall8,piwall9,piwall10' | sed 's/,/\n/g' | parallel --tag --keep-order --max-args 1 --jobs 0 --will-cite curl --silent {}.local:9100/metrics | grep 'promhttp_metric_handler_requests_total{code="200"}'
+....
+
+## Grafana configuration
+1. Set username and password to admin / admin on first login : http://study.local:3000
+1. Add prometheus datasource http://study.local:3000/connections/datasources :
+    1. HTTP > Prometheus server URL: `http://localhost:9090`
+    1. Interval behaviour > Scrape interval: `10s`
+    1. Performance > Prometheus type: `Prometheus`
+1. Add "Node Exporter Full"[https://grafana.com/grafana/dashboards/1860-node-exporter-full/] dashboard http://study.local:3000/dashboard/import :
+    1. Import via grafana.com: `1860` (this is the dashboard ID)
+
+## Files used
+The grafana DB is a sqlite file: `sudo sqlite3 /var/lib/grafana/grafana.db`
+
+Prometheus stores data at the path specified by the `--storage.tsdb.path` flag.

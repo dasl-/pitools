@@ -49,7 +49,23 @@ scrape_configs:
     # scheme defaults to 'http'.
 
     static_configs:
-      - targets: ["study:9100", "bedroom:9100"]
+      - targets: [
+            "study.local:9100",
+            "pifi.local:9100",
+            "kitchen.local:9100",
+            "bedroom.local:9100",
+            "piwall.local:9100",
+            "piwall1.local:9100",
+            "piwall2.local:9100",
+            "piwall3.local:9100",
+            "piwall4.local:9100",
+            "piwall5.local:9100",
+            "piwall6.local:9100",
+            "piwall7.local:9100",
+            "piwall8.local:9100",
+            "piwall9.local:9100",
+            "piwall10.local:9100",
+        ]
 EOF
 }
 
