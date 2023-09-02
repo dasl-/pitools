@@ -49,7 +49,7 @@ scrape_configs:
     # scheme defaults to 'http'.
 
     static_configs:
-      - targets: ["study:9100"]
+      - targets: ["study:9100", "bedroom:9100"]
 EOF
 }
 
