@@ -22,8 +22,10 @@ downloadBinary(){
     info "\\nDownloading node_exporter binary..."
     mkdir -p $INSTALL_DIR
     pushd $INSTALL_DIR
+    rm -rf "node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
     wget "https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
     tar xvfz "node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
+    rm -rf "node_exporter-$NODE_EXPORTER_VERSION.tar.gz"
     popd
 }
 
