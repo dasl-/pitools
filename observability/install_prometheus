@@ -17,7 +17,7 @@ main(){
 
     local prometheus_url
     prometheus_url="http://$(hostname).local:9090/graph"
-    info "\\nFinished installing prometheus. Wait ~1 minute for it to be ready; then view metrics at: $prometheus_url"
+    info "\\nFinished installing prometheus. Wait ~5 seconds for it to be ready; then view metrics at: $prometheus_url"
 }
 
 downloadBinary(){
@@ -64,7 +64,7 @@ Wants=network-online.target
 
 [Service]
 Environment=HOME=/root
-ExecStart=$INSTALL_DIR/prometheus-$PROMETHEUS_VERSION/prometheus --config.file=$INSTALL_DIR/prometheus.yml
+ExecStart=$INSTALL_DIR/prometheus-$PROMETHEUS_VERSION/prometheus --config.file=$INSTALL_DIR/prometheus.yml --storage.tsdb.path=$INSTALL_DIR/prometheus-data
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog

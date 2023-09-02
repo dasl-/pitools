@@ -16,7 +16,7 @@ main(){
 
     local node_exporter_url
     node_exporter_url="http://$(hostname).local:9100/metrics"
-    info "\\nFinished installing node_exporter. Wait ~1 minute for it to be ready; then view metrics at: $node_exporter_url"
+    info "\\nFinished installing node_exporter. Wait ~5 seconds for it to be ready; then view metrics at: $node_exporter_url"
 }
 
 downloadBinary(){
