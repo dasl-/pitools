@@ -41,7 +41,7 @@ Wants=network-online.target
 
 [Service]
 Environment=HOME=/root
-ExecStart=/home/pi/observability/node_exporter-$NODE_EXPORTER_VERSION/node_exporter
+ExecStart=$INSTALL_DIR/node_exporter-$NODE_EXPORTER_VERSION/node_exporter
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog

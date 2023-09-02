@@ -12,6 +12,7 @@ main(){
     info "\\nInstalling prometheus..."
 
     downloadBinary
+    setupConfigFile
     setupSystemd
 
     local prometheus_url
@@ -30,6 +31,28 @@ downloadBinary(){
     popd
 }
 
+setupConfigFile(){
+    info "\\nSetting up config file: $INSTALL_DIR/prometheus.yml ..."
+cat <<-EOF | sudo tee "$INSTALL_DIR/prometheus.yml" >/dev/null
+# my global config
+global:
+  scrape_interval: 10s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 10s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  # scrape_timeout is set to the global default (10s).
+
+# A scrape configuration containing exactly one endpoint to scrape:
+scrape_configs:
+  # The job name is added as a label \`job=<job_name>\` to any timeseries scraped from this config.
+  - job_name: "node_exporter"
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+
+    static_configs:
+      - targets: ["study:9100"]
+EOF
+}
+
 setupSystemd(){
     info "\\nSetting up systemd..."
 
@@ -41,7 +64,7 @@ Wants=network-online.target
 
 [Service]
 Environment=HOME=/root
-ExecStart=/home/pi/observability/prometheus-$PROMETHEUS_VERSION/prometheus
+ExecStart=$INSTALL_DIR/prometheus-$PROMETHEUS_VERSION/prometheus --config.file=$INSTALL_DIR/prometheus.yml
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog
