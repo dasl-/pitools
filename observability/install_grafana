@@ -24,7 +24,8 @@ main(){
     sudo systemctl daemon-reload
     sudo systemctl restart grafana-server
 
-    local grafana_url="http://$(hostname).local:3000"
+    local grafana_url
+    grafana_url="http://$(hostname).local:3000"
     info "\\nFinished installing grafana. Wait ~1 minute for it to be ready; then access it at: $grafana_url"
 }
 

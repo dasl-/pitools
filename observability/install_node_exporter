@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+set -euo pipefail -o errtrace
+INSTALL_DIR="/home/pi/observability"
+NODE_EXPORTER_VERSION='1.6.1'
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    # https://prometheus.io/docs/guides/node-exporter/
+    info "\\nInstalling node_exporter..."
+
+    downloadBinary
+    setupSystemd
+
+    local node_exporter_url
+    node_exporter_url="http://$(hostname).local:9100/metrics"
+    info "\\nFinished installing node_exporter. Wait ~1 minute for it to be ready; then view metrics at: $node_exporter_url"
+}
+
+downloadBinary(){
+    info "\\nDownloading node_exporter binary..."
+    mkdir -p $INSTALL_DIR
+    pushd $INSTALL_DIR
+    wget "https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-$NODE_EXPORTER_VERSION.linux-armv7.tar.gz"
+    tar xvfz "node_exporter-$NODE_EXPORTER_VERSION-armv7.tar.gz"
+    popd
+}
+
+setupSystemd(){
+    info "\\nSetting up systemd..."
+
+    sudo "$BASE_DIR/install/pifi_queue_service.sh"
+    sudo "$BASE_DIR/install/pifi_server_service.sh"
+    sudo "$BASE_DIR/install/pifi_websocket_server_service.sh"
+
+cat <<-EOF | sudo tee /etc/systemd/system/node_exporter.service >/dev/null
+[Unit]
+Description=node_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=HOME=/root
+ExecStart=/home/pi/observability/node_exporter-$NODE_EXPORTER_VERSION-armv7/node_exporter
+Restart=on-failure
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=NODE_EXPORTER
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo chown root:root /etc/systemd/system/node_exporter.service
+    sudo chmod 644 /etc/systemd/system/node_exporter.service
+    sudo systemctl enable /etc/systemd/system/node_exporter.service
+    sudo systemctl daemon-reload
+    sudo systemctl restart node_exporter.service
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"
