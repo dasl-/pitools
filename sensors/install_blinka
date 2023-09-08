@@ -2,6 +2,8 @@
 
 # You'll need to install the Adafruit_Blinka library that provides the CircuitPython support in Python.
 # https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
+#
+# https://github.com/adafruit/Adafruit_Blinka
 
 set -euo pipefail -o errtrace
 
@@ -24,10 +26,11 @@ main(){
 }
 
 updatePackages(){
+    info "Updating and installing packages..."
     sudo apt update
     sudo apt -y install python3-pip i2c-tools libgpiod-dev
     sudo apt -y full-upgrade
-    sudo python3 -m pip install --upgrade setuptools RPi.GPIO adafruit-blinka python3-pip
+    sudo python3 -m pip install --upgrade setuptools RPi.GPIO adafruit-blinka
 }
 
 maybeEnableI2c(){
