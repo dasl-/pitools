@@ -4,6 +4,7 @@ set -euo pipefail -o errtrace
 INSTALL_DIR="/home/pi/observability"
 VERSION_NUMBER='1.6.1'
 NODE_EXPORTER_VERSION="$VERSION_NUMBER.linux-armv7"
+TEXTFILE_DIRECTORY="$INSTALL_DIR/textfile_collector_data"
 
 main(){
     trap 'fail $? $LINENO' ERR
@@ -32,6 +33,7 @@ downloadBinary(){
 
 setupSystemd(){
     info "\\nSetting up systemd..."
+    mkdir -p $TEXTFILE_DIRECTORY
 
 cat <<-EOF | sudo tee /etc/systemd/system/node_exporter.service >/dev/null
 [Unit]
@@ -42,7 +44,7 @@ Wants=network-online.target
 [Service]
 Environment=HOME=/root
 # The systemd / processes collectors are suggested to be enabled: https://github.com/rfmoz/grafana-dashboards#node-exporter-full
-ExecStart=$INSTALL_DIR/node_exporter-$NODE_EXPORTER_VERSION/node_exporter --collector.systemd --collector.processes
+ExecStart=$INSTALL_DIR/node_exporter-$NODE_EXPORTER_VERSION/node_exporter --collector.systemd --collector.processes --collector.textfile.directory=$TEXTFILE_DIRECTORY
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog

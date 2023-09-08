@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # https://learn.adafruit.com/adafruit-bme280-humidity-barometric-pressure-temperature-sensor-breakout?view=all
+# https://www.adafruit.com/product/2652
 
 set -euo pipefail -o errtrace
 
@@ -28,7 +29,7 @@ main(){
 
 updatePackages(){
     info "Updating and installing packages..."
-    sudo python3 -m pip install --upgrade adafruit-circuitpython-bme280
+    sudo python3 -m pip install --upgrade adafruit-circuitpython-bme280 prometheus-client
 }
 
 fail(){
