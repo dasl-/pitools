@@ -8,21 +8,51 @@
 set -euo pipefail -o errtrace
 
 RESTART_REQUIRED_FILE='/tmp/blinka_restart_required.file'
+DEFER_RESTART=false
+
+usage() {
+    local exit_code=$1
+    echo "usage: $0"
+    echo "    -d    If the installation would have required a restart, defer restarting the raspberry pi."
+    exit "$exit_code"
+}
 
 main(){
     trap 'fail $? $LINENO' ERR
 
     info "\\nInstalling Blinka..."
 
+    parseOpts "$@"
     updatePackages
     maybeEnableI2c
 
     info "\\nFinished installing Blinka."
 
     if [ -f $RESTART_REQUIRED_FILE ]; then
-        echo "Restarting..."
-        sudo shutdown -r now
+        if [[ ${DEFER_RESTART} == "true" ]]; then
+            info "Deferring restart. Please ensure you restart the pi later to complete the installation!"
+        else
+            info "Restarting..."
+            sudo shutdown -r now
+        fi
     fi
+}
+
+parseOpts(){
+    while getopts "d" opt; do
+        case ${opt} in
+            d) DEFER_RESTART=true ;;
+            \?)
+                warn "Invalid option: -$OPTARG"
+                usage
+                ;;
+            :)
+                warn "Option -$OPTARG requires an argument."
+                usage
+                ;;
+            *) usage ;;
+        esac
+    done
 }
 
 updatePackages(){
@@ -36,7 +66,12 @@ updatePackages(){
 maybeEnableI2c(){
     # https://github.com/RPi-Distro/raspi-config/blob/62c36c29bb3423d1633ee5d6f1abf7c92c5b822d/raspi-config#L954
     if grep -q -E "^(device_tree_param|dtparam)=([^,]*,)*i2c(_arm)?(=(on|true|yes|1))?(,.*)?$" /boot/config.txt ; then
-        info "I2C was already enabled..."
+        if ls /dev/i2c* ; then
+            # We expect output like this: `/dev/i2c-1  /dev/i2c-2`
+            info "I2C was already enabled..."
+        else
+            warn "I2C was already enabled, but we could not find the corresponding devices! Perhaps a reboot is required?"
+        fi
     else
         info "Enabling I2C..."
         touch $RESTART_REQUIRED_FILE

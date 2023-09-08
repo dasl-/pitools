@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+# https://learn.adafruit.com/adafruit-bme280-humidity-barometric-pressure-temperature-sensor-breakout?view=all
+
+set -euo pipefail -o errtrace
+
+BASE_DIR="$(dirname "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )")"
+
+# Use the same restart file referenced in the `install_blinka` script. This script calls out to
+# `install_blinka` and performs the restart if the `install_blinka` script requested one.
+RESTART_REQUIRED_FILE='/tmp/blinka_restart_required.file'
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    info "\\nInstalling BME280 temperature and humidity sensor..."
+
+    "$BASE_DIR"/sensors/install_blinka -d
+    updatePackages
+
+    info "\\nFinished installing BME280."
+
+    if [ -f $RESTART_REQUIRED_FILE ]; then
+        info "Restarting..."
+        sudo shutdown -r now
+    fi
+}
+
+updatePackages(){
+    info "Updating and installing packages..."
+    sudo python3 -m pip install --upgrade adafruit-circuitpython-bme280
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"
