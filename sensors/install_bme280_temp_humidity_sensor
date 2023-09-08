@@ -18,6 +18,7 @@ main(){
 
     "$BASE_DIR"/sensors/install_blinka -d
     updatePackages
+    setupSystemd
 
     info "\\nFinished installing BME280."
 
@@ -30,6 +31,34 @@ main(){
 updatePackages(){
     info "Updating and installing packages..."
     sudo python3 -m pip install --upgrade adafruit-circuitpython-bme280 prometheus-client
+}
+
+setupSystemd(){
+    info "\\nSetting up systemd..."
+
+cat <<-EOF | sudo tee /etc/systemd/system/measure_temp_and_humidity.service >/dev/null
+[Unit]
+Description=Measure temperature and humidity
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=HOME=/root
+ExecStart=$BASE_DIR/sensors/measure_temp_and_humidity
+Restart=on-failure
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=MEASURE_TEMP_AND_HUMIDITY
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo chown root:root /etc/systemd/system/measure_temp_and_humidity.service
+    sudo chmod 644 /etc/systemd/system/measure_temp_and_humidity.service
+    sudo systemctl enable /etc/systemd/system/measure_temp_and_humidity.service
+    sudo systemctl daemon-reload
+    sudo systemctl restart measure_temp_and_humidity.service
 }
 
 fail(){
