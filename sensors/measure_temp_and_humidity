@@ -16,6 +16,7 @@ def main():
     while True:
         # If I have long delays between reads, the first data read seems wrong?
         # The BMx280 'saves' the last reading in memory for you to query. Just read twice in a row and toss out the first reading!
+        # Via: # https://learn.adafruit.com/adafruit-bme280-humidity-barometric-pressure-temperature-sensor-breakout?view=all
         get_data(bme280)
         data = get_data(bme280)
         temp_gauge.set(data[0])
