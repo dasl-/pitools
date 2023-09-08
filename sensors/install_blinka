@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+# You'll need to install the Adafruit_Blinka library that provides the CircuitPython support in Python.
+# https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
+
+set -euo pipefail -o errtrace
+
+RESTART_REQUIRED_FILE='/tmp/blinka_restart_required.file'
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    info "\\nInstalling Blinka..."
+
+    updatePackages
+    maybeEnableI2c
+
+    info "\\nFinished installing Blinka."
+
+    if [ -f $RESTART_REQUIRED_FILE ]; then
+        echo "Restarting..."
+        sudo shutdown -r now
+    fi
+}
+
+updatePackages(){
+    sudo apt update
+    sudo apt -y install python3-pip i2c-tools libgpiod-dev
+    sudo apt -y full-upgrade
+    sudo python3 -m pip install --upgrade setuptools RPi.GPIO adafruit-blinka python3-pip
+}
+
+maybeEnableI2c(){
+    # https://github.com/RPi-Distro/raspi-config/blob/62c36c29bb3423d1633ee5d6f1abf7c92c5b822d/raspi-config#L954
+    if grep -q -E "^(device_tree_param|dtparam)=([^,]*,)*i2c(_arm)?(=(on|true|yes|1))?(,.*)?$" /boot/config.txt ; then
+        info "I2C was already enabled..."
+    else
+        info "Enabling I2C..."
+        touch $RESTART_REQUIRED_FILE
+        sudo raspi-config nonint do_i2c 0
+    fi
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"
