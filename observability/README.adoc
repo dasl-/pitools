@@ -13,7 +13,7 @@ dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remot
 ....
 
 ## Grafana configuration
-. Set username and password to admin / admin on first login : http://study.local:3000
+. The username and password is admin / admin by default on first login. Change password to same as WiFi password. : http://study.local:3000
 . Add prometheus datasource http://study.local:3000/connections/datasources :
 .. HTTP > Prometheus server URL: `http://localhost:9090`
 .. Interval behaviour > Scrape interval: `10s`

@@ -4,6 +4,9 @@ set -euo pipefail -o errtrace
 INSTALL_DIR="/home/pi/observability"
 VERSION_NUMBER='1.6.1'
 NODE_EXPORTER_VERSION="$VERSION_NUMBER.linux-armv7"
+if [[ $(getconf LONG_BIT)  == '64' ]] ; then
+    NODE_EXPORTER_VERSION="$VERSION_NUMBER.linux-arm64"
+fi
 TEXTFILE_DIRECTORY="$INSTALL_DIR/textfile_collector_data"
 
 main(){

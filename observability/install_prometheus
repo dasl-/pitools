@@ -3,7 +3,22 @@
 set -euo pipefail -o errtrace
 INSTALL_DIR="/home/pi/observability"
 VERSION_NUMBER='2.45.0'
+
+# Binary for 32-bit Raspbian OS - do not use this (see below)!
+# It works, but after ~7 days of data, it will result in memory allocation errors.
 PROMETHEUS_VERSION="$VERSION_NUMBER.linux-armv7"
+
+# Note: prometheus should be installed on a 64-bit OS using the 64-bit binary, otherwise you
+# will run into memory allocation errors.
+#
+# See:
+# https://discuss.prometheus.io/t/prometheus-crashes-during-compaction-process/141/2
+# https://github.com/prometheus/prometheus/issues/8661#issuecomment-866036262
+# https://groups.google.com/g/prometheus-users/c/WhC8hTLKwtM/m/5F8heH9XAgAJ
+if [[ $(getconf LONG_BIT)  == '64' ]] ; then
+    PROMETHEUS_VERSION="$VERSION_NUMBER.linux-arm64"
+fi
+
 
 main(){
     trap 'fail $? $LINENO' ERR
