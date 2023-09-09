@@ -192,9 +192,6 @@ buildShairportSync(){
     # pull again because if we were on another branch before, we need to pull after checking out the correct branch
     cloneOrPullRepo "$SHAIRPORT_SYNC_REPO_PATH" "$SHAIRPORT_SYNC_CLONE_URL"
 
-    # Apply logarithmic volume patch
-    git apply <(curl https://patch-diff.githubusercontent.com/raw/mikebrady/shairport-sync/pull/1699.patch)
-
     autoreconf -fi
 
     # Use CFLAGS to get more informative coredumps: https://github.com/mikebrady/shairport-sync/issues/1479
@@ -203,9 +200,6 @@ buildShairportSync(){
     make clean # maybe this is necessary? https://github.com/mikebrady/shairport-sync/issues/1571#issuecomment-1312445078
     make -j
     sudo make install
-
-    # undo local changes (logarithmic volume patch)
-    git checkout -- .
 
     popd
 
