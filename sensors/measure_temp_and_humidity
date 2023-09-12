@@ -6,13 +6,14 @@ import time
 import board
 from adafruit_bme280 import basic as adafruit_bme280
 import prometheus_client
+import math
 
 # Create sensor object, using the board's default I2C bus.
 i2c = board.I2C()  # uses board.SCL and board.SDA
 bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c)
 
 def main():
-    registry, temp_gauge, humidity_gauge = setup_prometheus()
+    registry, temp_gauge, humidity_gauge, dewpoint_gauge = setup_prometheus()
     while True:
         # If I have long delays between reads, the first data read seems wrong?
         # The BMx280 'saves' the last reading in memory for you to query. Just read twice in a row and toss out the first reading!
@@ -21,6 +22,7 @@ def main():
         data = get_data(bme280)
         temp_gauge.set(data[0])
         humidity_gauge.set(data[1])
+        dewpoint_gauge.set(data[2])
         prometheus_client.write_to_textfile('/home/pi/observability/textfile_collector_data/temp_and_humidity.prom', registry)
 
         # Prometheus scraping interval is 10s. Sleep for less than 10s to ensure that a new scrape picks
@@ -37,11 +39,24 @@ def setup_prometheus():
     registry = prometheus_client.CollectorRegistry()
     temp_gauge = prometheus_client.Gauge('ambient_temperature_f', 'Temperature in Farenheit as measured by bme280 sensor', registry=registry)
     humidity_gauge = prometheus_client.Gauge('ambient_relative_humidity', 'Relative humidity as measured by bme280 sensor', registry=registry)
-    return [registry, temp_gauge, humidity_gauge]
+    dewpoint_gauge = prometheus_client.Gauge('ambient_dewpoint_f', 'Dewpoint in Farenheit as measured by bme280 sensor', registry=registry)
+    return [registry, temp_gauge, humidity_gauge, dewpoint_gauge]
 
 def get_data(bme280):
-    temp_f = bme280.temperature * 1.8 + 32
-    return [temp_f, bme280.relative_humidity, bme280.pressure, bme280.altitude]
+    temp_c = bme280.temperature
+    relative_humidity = bme280.relative_humidity
+
+    # Dewpoint. See:
+    # https://learn.adafruit.com/adafruit-bme280-humidity-barometric-pressure-temperature-sensor-breakout?view=all#circuitpython-and-python-usage-2958133
+    # https://en.wikipedia.org/wiki/Dew_point#Calculating_the_dew_point
+    b = 17.62
+    c = 243.12
+    gamma = (b * temp_c / (c + temp_c)) + math.log(relative_humidity / 100.0)
+    dewpoint_c = (c * gamma) / (b - gamma)
+    dewpoint_f = dewpoint_c * 1.8 + 32
+
+    temp_f = temp_c * 1.8 + 32
+    return [temp_f, relative_humidity, dewpoint_f, bme280.pressure, bme280.altitude]
 
 
 main()
