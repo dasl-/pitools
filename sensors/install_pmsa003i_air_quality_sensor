@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+
+# https://learn.adafruit.com/pmsa003i?view=all#python-installation-of-pm25-library-3067526
+# https://www.adafruit.com/product/4632
+
+set -euo pipefail -o errtrace
+
+BASE_DIR="$(dirname "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )")"
+
+# Use the same restart file referenced in the `install_blinka` script. This script calls out to
+# `install_blinka` and performs the restart if the `install_blinka` script requested one.
+RESTART_REQUIRED_FILE='/tmp/blinka_restart_required.file'
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    info "\\nInstalling PMSA003I air quality sensor..."
+
+    "$BASE_DIR"/sensors/install_blinka -d
+    updatePackages
+    setupSystemd
+
+    info "\\nFinished installing PMSA003I."
+
+    if [ -f $RESTART_REQUIRED_FILE ]; then
+        info "Restarting..."
+        sudo shutdown -r now
+    fi
+}
+
+updatePackages(){
+    info "Updating and installing packages..."
+    sudo python3 -m pip install --upgrade adafruit-circuitpython-pm25 prometheus-client
+}
+
+setupSystemd(){
+    info "\\nSetting up systemd..."
+
+cat <<-EOF | sudo tee /etc/systemd/system/measure_air_quality.service >/dev/null
+[Unit]
+Description=Measure air quality
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=HOME=/root
+ExecStart=$BASE_DIR/sensors/measure_air_quality
+Restart=on-failure
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=MEASURE_AIR_QUALITY
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo chown root:root /etc/systemd/system/measure_air_quality.service
+    sudo chmod 644 /etc/systemd/system/measure_air_quality.service
+    sudo systemctl enable /etc/systemd/system/measure_air_quality.service
+    sudo systemctl daemon-reload
+    sudo systemctl restart measure_air_quality.service
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"

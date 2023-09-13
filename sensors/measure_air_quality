@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+
+# See:
+# https://www.adafruit.com/product/4632
+# https://learn.adafruit.com/pmsa003i?view=all#circuitpython-and-python-usage-3067542
+# https://github.com/adafruit/Adafruit_CircuitPython_PM25
+
+import time
+import board
+import busio
+from adafruit_pm25.i2c import PM25_I2C
+import prometheus_client
+
+def main():
+    # Create library object, use 'slow' 100KHz frequency!
+    i2c = busio.I2C(board.SCL, board.SDA, frequency=100000)
+    # Connect to a PM2.5 sensor over I2C
+    sensor = PM25_I2C(i2c, reset_pin=None)
+
+    registry, pm25_gauge = setup_prometheus()
+    while True:
+        # Prometheus scraping interval is 10s. Sleep for less than 10s to ensure that a new scrape picks
+        # up a fresh data.
+        time.sleep(9)
+
+        try:
+            data = get_data(sensor)
+        except RuntimeError:
+            print("Unable to read from sensor, retrying...")
+            continue
+
+        pm25_gauge.set(data['pm10 standard'])
+        prometheus_client.write_to_textfile('/home/pi/observability/textfile_collector_data/air_quality.prom', registry)
+
+# Save disk space by not collecting unneeded stats.
+def setup_prometheus():
+    # https://github.com/prometheus/client_python#disabling-default-collector-metrics
+    prometheus_client.REGISTRY.unregister(prometheus_client.GC_COLLECTOR)
+    prometheus_client.REGISTRY.unregister(prometheus_client.PLATFORM_COLLECTOR)
+    prometheus_client.REGISTRY.unregister(prometheus_client.PROCESS_COLLECTOR)
+
+    registry = prometheus_client.CollectorRegistry()
+    pm25_gauge = prometheus_client.Gauge('ambient_pm25', 'Concentration of PM 2.5. Units: μg/m^3.', registry=registry)
+    return [registry, pm25_gauge]
+
+
+"""
+Data looks like this:
+{
+    'pm10 standard': 3, 
+    'pm25 standard': 5, 
+    'pm100 standard': 6, 
+    'pm10 env': 3, 
+    'pm25 env': 5, 
+    'pm100 env': 6, 
+    'particles 03um': 663, 
+    'particles 05um': 199, 
+    'particles 10um': 32, 
+    'particles 25um': 4, 
+    'particles 50um': 2, 
+    'particles 100um': 0
+}
+
+Units for the first 6 values are micrograms per meter cubed (μg/m^3)
+(see datasheet, page 13: https://cdn-shop.adafruit.com/product-files/4632/4505_PMSA003I_series_data_manual_English_V2.6.pdf )
+
+That is, 'pm10' means pm 1.0 μg/m^3
+
+As for whether to use 'standard' or 'env', I'm not totally sure. It probably doesn't matter much because the numbers 
+should be pretty similar close to sea level. 
+
+1) This post suggests using 'standard': https://publiclab.org/questions/samr/04-07-2019/how-to-interpret-pms5003-sensor-values#c23772
+2) This post suggests using 'env': https://forums.adafruit.com/viewtopic.php?p=767725#p767725
+3) This post suggests using 'standard': https://forums.adafruit.com/viewtopic.php?p=776128#p776128
+
+(3) suggests that 'standard' and 'env' match for values <= 30 μg/m^3. Whatever - I'll go with the majority and
+use 'standard' /shrug.
+
+Units for the last 6 values are: number of particles with diameter > X μm / 0.1L air:
+
+Particles > 0.3um / 0.1L air
+Particles > 0.5um / 0.1L air
+Particles > 1.0um / 0.1L air
+Particles > 2.5um / 0.1L air
+Particles > 5.0um / 0.1L air
+Particles > 10 um / 0.1L air
+"""
+def get_data(sensor):
+    aqdata = sensor.read()
+    return aqdata
+
+
+main()
