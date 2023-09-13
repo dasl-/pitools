@@ -17,7 +17,7 @@ def main():
     # Connect to a PM2.5 sensor over I2C
     sensor = PM25_I2C(i2c, reset_pin=None)
 
-    registry, pm25_gauge = setup_prometheus()
+    registry, pm25_gauge, pm25_env_gauge = setup_prometheus()
     while True:
         # Prometheus scraping interval is 10s. Sleep for less than 10s to ensure that a new scrape picks
         # up a fresh data.
@@ -29,7 +29,8 @@ def main():
             print("Unable to read from sensor, retrying...")
             continue
 
-        pm25_gauge.set(data['pm10 standard'])
+        pm25_gauge.set(data['pm25 standard'])
+        pm25_env_gauge.set(data['pm25 env'])
         prometheus_client.write_to_textfile('/home/pi/observability/textfile_collector_data/air_quality.prom', registry)
 
 # Save disk space by not collecting unneeded stats.
@@ -41,7 +42,8 @@ def setup_prometheus():
 
     registry = prometheus_client.CollectorRegistry()
     pm25_gauge = prometheus_client.Gauge('ambient_pm25', 'Concentration of PM 2.5. Units: μg/m^3.', registry=registry)
-    return [registry, pm25_gauge]
+    pm25_env_gauge = prometheus_client.Gauge('ambient_pm25_env', 'Concentration of PM 2.5. Units: μg/m^3.', registry=registry)
+    return [registry, pm25_gauge, pm25_env_gauge]
 
 
 """
