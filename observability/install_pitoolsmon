@@ -9,9 +9,15 @@ main(){
 
     info "\\nInstalling pitoolsmon..."
 
+    updatePackages
     setupSystemd
 
     info "\\nFinished installing pitoolsmon."
+}
+
+updatePackages(){
+    info "Updating and installing packages..."
+    sudo python3 -m pip install --upgrade prometheus-client
 }
 
 setupSystemd(){
