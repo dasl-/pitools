@@ -16,7 +16,6 @@ main(){
 
 setupSystemd(){
     info "\\nSetting up systemd..."
-    mkdir -p $TEXTFILE_DIRECTORY
 
 cat <<-EOF | sudo tee /etc/systemd/system/pitoolsmon.service >/dev/null
 [Unit]
