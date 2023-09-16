@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+set -euo pipefail -o errtrace
+
+BASE_DIR="$(dirname "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )")"
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    info "\\nInstalling pitoolsmon..."
+
+    setupSystemd
+
+    info "\\nFinished installing pitoolsmon."
+}
+
+setupSystemd(){
+    info "\\nSetting up systemd..."
+    mkdir -p $TEXTFILE_DIRECTORY
+
+cat <<-EOF | sudo tee /etc/systemd/system/pitoolsmon.service >/dev/null
+[Unit]
+Description=pitoolsmon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=HOME=/root
+ExecStart=$BASE_DIR/observability/pitoolsmon
+Restart=on-failure
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=PITOOLSMON
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo chown root:root /etc/systemd/system/pitoolsmon.service
+    sudo chmod 644 /etc/systemd/system/pitoolsmon.service
+    sudo systemctl enable /etc/systemd/system/pitoolsmon.service
+    sudo systemctl daemon-reload
+    sudo systemctl restart pitoolsmon.service
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"

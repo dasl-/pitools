@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+
+# See: https://gist.github.com/dasl-/f875535b2b71bcab0f1215a1b39b52cf
+
+import pprint
+import subprocess
+
+throttled_output = subprocess.check_output(('vcgencmd', 'get_throttled')).decode("utf-8")
+throttled_output = throttled_output.strip()[-5:]
+
+throttling_map = {
+    'under_voltage_detected': 0,
+    'arm_frequency_capped': 0,
+    'currently_throttled': 0,
+    'soft_temperature_limit_active': 0,
+    'under_voltage_has_occurred': 0,
+    'arm_frequency_capping_has_occurred': 0,
+    'throttling_has_occurred': 0,
+    'soft_temperature_limit_has_occurred': 0,
+}
+index_offset = 16
+for i in range(len(throttled_output)):
+    char = throttled_output[i]
+
+    # Ex:
+    # '1'        -> '0001'
+    # 'd' or 'D' -> '1101'
+    binary = bin(int(char, 16))[2:].zfill(4)
+    for j in range(len(binary)):
+        if binary[j] == '1':
+            bit_index = index_offset + len(binary) - j - 1
+            if bit_index == 0:
+                throttling_map['under_voltage_detected'] = 1
+            elif bit_index == 1:
+                throttling_map['arm_frequency_capped'] = 1
+            elif bit_index == 2:
+                throttling_map['currently_throttled'] = 1
+            elif bit_index == 3:
+                throttling_map['soft_temperature_limit_active'] = 1
+            elif bit_index == 16:
+                throttling_map['under_voltage_has_occurred'] = 1
+            elif bit_index == 17:
+                throttling_map['arm_frequency_capping_has_occurred'] = 1
+            elif bit_index == 18:
+                throttling_map['throttling_has_occurred'] = 1
+            elif bit_index == 19:
+                throttling_map['soft_temperature_limit_has_occurred'] = 1
+
+    index_offset -= 4
+
+pp = pprint.PrettyPrinter(sort_dicts=False)
+pp.pprint(throttling_map)

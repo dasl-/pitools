@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+
+import subprocess
+import time
+import prometheus_client
+
+# Collects custom raspberry pi metrics and emits them for prometheus
+def main():
+    registry, throttling_gauges = setup_prometheus()
+    while True:
+        throttling_values_map = get_data()
+
+        for key in throttling_values_map:
+            throttling_gauges[key].set(throttling_values_map[key])
+
+        prometheus_client.write_to_textfile('/home/pi/observability/textfile_collector_data/pitoolsmon.prom', registry)
+
+        # Prometheus scraping interval is 10s. Sleep for less than 10s to ensure that a new scrape picks
+        # up a fresh data.
+        time.sleep(9)
+
+# Save disk space by not collecting unneeded stats.
+def setup_prometheus():
+    # https://github.com/prometheus/client_python#disabling-default-collector-metrics
+    prometheus_client.REGISTRY.unregister(prometheus_client.GC_COLLECTOR)
+    prometheus_client.REGISTRY.unregister(prometheus_client.PLATFORM_COLLECTOR)
+    prometheus_client.REGISTRY.unregister(prometheus_client.PROCESS_COLLECTOR)
+
+    registry = prometheus_client.CollectorRegistry()
+    throttling_gauges = {}
+    throttling_gauges['under_voltage_detected'] = prometheus_client.Gauge('pitoolsmon_under_voltage_detected', 'Raspberry pi', registry=registry)
+    throttling_gauges['arm_frequency_capped'] = prometheus_client.Gauge('pitoolsmon_arm_frequency_capped', 'Raspberry pi', registry=registry)
+    throttling_gauges['currently_throttled'] = prometheus_client.Gauge('pitoolsmon_currently_throttled', 'Raspberry pi', registry=registry)
+    throttling_gauges['soft_temperature_limit_active'] = prometheus_client.Gauge('pitoolsmon_soft_temperature_limit_active', 'Raspberry pi', registry=registry)
+    throttling_gauges['under_voltage_has_occurred'] = prometheus_client.Gauge('pitoolsmon_under_voltage_has_occurred', 'Raspberry pi', registry=registry)
+    throttling_gauges['arm_frequency_capping_has_occurred'] = prometheus_client.Gauge('pitoolsmon_arm_frequency_capping_has_occurred', 'Raspberry pi', registry=registry)
+    throttling_gauges['throttling_has_occurred'] = prometheus_client.Gauge('pitoolsmon_throttling_has_occurred', 'Raspberry pi', registry=registry)
+    throttling_gauges['soft_temperature_limit_has_occurred'] = prometheus_client.Gauge('pitoolsmon_soft_temperature_limit_has_occurred', 'Raspberry pi', registry=registry)
+
+    return [registry, throttling_gauges]
+
+def get_data():
+    throttled_output = subprocess.check_output(('vcgencmd', 'get_throttled')).decode("utf-8")
+    throttling_values_map = interpret_throttled_output(throttled_output)
+    return throttling_values_map
+
+# See: https://gist.github.com/dasl-/f875535b2b71bcab0f1215a1b39b52cf
+def interpret_throttled_output(throttled_output):
+    throttled_output = throttled_output.strip()[-5:]
+
+    throttling_values_map = {
+        'under_voltage_detected': 0,
+        'arm_frequency_capped': 0,
+        'currently_throttled': 0,
+        'soft_temperature_limit_active': 0,
+        'under_voltage_has_occurred': 0,
+        'arm_frequency_capping_has_occurred': 0,
+        'throttling_has_occurred': 0,
+        'soft_temperature_limit_has_occurred': 0,
+    }
+    index_offset = 16
+    for i in range(len(throttled_output)):
+        char = throttled_output[i]
+
+        # Ex:
+        # '1'        -> '0001'
+        # 'd' or 'D' -> '1101'
+        binary = bin(int(char, 16))[2:].zfill(4)
+        for j in range(len(binary)):
+            if binary[j] == '1':
+                bit_index = index_offset + len(binary) - j - 1
+                if bit_index == 0:
+                    throttling_values_map['under_voltage_detected'] = 1
+                elif bit_index == 1:
+                    throttling_values_map['arm_frequency_capped'] = 1
+                elif bit_index == 2:
+                    throttling_values_map['currently_throttled'] = 1
+                elif bit_index == 3:
+                    throttling_values_map['soft_temperature_limit_active'] = 1
+                elif bit_index == 16:
+                    throttling_values_map['under_voltage_has_occurred'] = 1
+                elif bit_index == 17:
+                    throttling_values_map['arm_frequency_capping_has_occurred'] = 1
+                elif bit_index == 18:
+                    throttling_values_map['throttling_has_occurred'] = 1
+                elif bit_index == 19:
+                    throttling_values_map['soft_temperature_limit_has_occurred'] = 1
+
+        index_offset -= 4
+
+    return throttling_values_map
+
+
+main()
