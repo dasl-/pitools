@@ -9,7 +9,11 @@ VERSION_NUMBER='2.45.0'
 PROMETHEUS_VERSION="$VERSION_NUMBER.linux-armv7"
 
 # Note: prometheus should be installed on a 64-bit OS using the 64-bit binary, otherwise you
-# will run into memory allocation errors.
+# will run into memory allocation errors. I didn't notice the memory allocation errors
+# immediately - it took about a week of collecting the default set of node_exporter
+# metrics on 15 raspberry pis before the prometheus metrics DB got large enough that memory
+# allocation errors started occuring. The size of the metrics DB had to reach about 1GB
+# before I experienced errors.
 #
 # See:
 # https://discuss.prometheus.io/t/prometheus-crashes-during-compaction-process/141/2
@@ -17,6 +21,8 @@ PROMETHEUS_VERSION="$VERSION_NUMBER.linux-armv7"
 # https://groups.google.com/g/prometheus-users/c/WhC8hTLKwtM/m/5F8heH9XAgAJ
 if [[ $(getconf LONG_BIT)  == '64' ]] ; then
     PROMETHEUS_VERSION="$VERSION_NUMBER.linux-arm64"
+else
+    warn "\\nYou are installing prometheus on a 32-bit OS. This may result in memory allocation errors that will cause prometheus to crash! We recommend using a 64-bit OS."
 fi
 
 

@@ -225,8 +225,14 @@ installReadlineHack(){
     info "\\nInstalling readline hack..."
     curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/.inputrc > "$HOME/.inputrc"
     mkdir -p ~/readline-hack
-    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_function.so > "$HOME/readline-hack/librl_custom_function.so"
-    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_isearch.so > "$HOME/readline-hack/librl_custom_isearch.so"
+
+    local so_suffix='32bit';
+    if [[ $(getconf LONG_BIT)  == '64' ]] ; then
+        so_suffix='64bit'
+    fi
+
+    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_function.so > "$HOME/readline-hack/librl_custom_function_$so_suffix.so"
+    curl https://raw.githubusercontent.com/dasl-/pitools/main/homedir/readline-hack/librl_custom_isearch.so > "$HOME/readline-hack/librl_custom_isearch_$so_suffix.so"
 
     mkdir -p ~/bin
     curl https://raw.githubusercontent.com/lincheney/rl_custom_isearch/master/bin/rl_custom_isearch > "$HOME/bin/rl_custom_isearch"
