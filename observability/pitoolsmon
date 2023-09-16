@@ -46,7 +46,10 @@ def get_data():
 
 # See: https://gist.github.com/dasl-/f875535b2b71bcab0f1215a1b39b52cf
 def interpret_throttled_output(throttled_output):
-    throttled_output = throttled_output.strip()[-5:]
+    throttled_output = throttled_output.strip()
+    if throttled_output[-3:] == '0x0':
+        throttled_output = '0x00000'
+    throttled_output = throttled_output[-5:]
 
     throttling_values_map = {
         'under_voltage_detected': 0,

@@ -6,7 +6,10 @@ import pprint
 import subprocess
 
 throttled_output = subprocess.check_output(('vcgencmd', 'get_throttled')).decode("utf-8")
-throttled_output = throttled_output.strip()[-5:]
+throttled_output = throttled_output.strip()
+if throttled_output[-3:] == '0x0':
+    throttled_output = '0x00000'
+throttled_output = throttled_output[-5:]
 
 throttling_map = {
     'under_voltage_detected': 0,
