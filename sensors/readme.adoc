@@ -26,5 +26,6 @@ It's based off of this formula:
 ....
 
 See
+
 1. https://en.wikipedia.org/wiki/Air_quality_index#Computing_the_AQI
 1. https://www.airnow.gov/sites/default/files/2020-05/aqi-technical-assistance-document-sept2018.pdf
