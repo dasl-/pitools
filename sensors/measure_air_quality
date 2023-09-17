@@ -90,12 +90,14 @@ This article has an equation that might (seems like a bad translation job) relat
 data, although it's for a different model air sensor from Plantower. The results seem similar to the std vs env
 graph given in (3) above: http://aqicn.org/sensor/pms5003-7003/
 
+Based on the equations, we expect 'env' to be lower than 'standard'.
+
 This article suggests that the pm10 measurements are a guess, based on the pm2.5 estimates and typical particle
 size distributions, although it's for a different model air sensor from Plantower:
 https://www.researchgate.net/publication/320555036_Particle_Distribution_Dependent_Inaccuracy_of_the_Plantower_PMS5003_low-cost_PM-sensor
 
-(3) suggests that 'standard' and 'env' match for values <= 30 μg/m^3. Whatever - I'll go with the majority and
-use 'env' /shrug.
+(3) suggests that 'standard' and 'env' match for values <= 30 μg/m^3. I'll go with 'env' because it is likely a better
+match to reference instruments without applying a custom scaling factor.
 
 Units for the last 6 values are: number of particles with diameter > X μm / 0.1L air:
 

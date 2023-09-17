@@ -3,8 +3,28 @@
 :toclevels: 5
 
 ## dsh to install or update air quality & temp + humidity sensors on multiple pis:
-
-Install pcc and install dependencies:
 ....
 dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@bedroom.local,pi@kitchen.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/sensors/install_bme280_temp_humidity_sensor && /home/pi/development/pitools/sensors/install_pmsa003i_air_quality_sensor' && dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@bedroom.local,pi@kitchen.local "sudo systemctl status 'measure_*'"
 ....
+
+## AQI calculations
+Prometheus query to convert pm2.5 to AQI:
+....
+((50 - 0) / (12 - 0) * ((avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) <= 12) - 0) + 0) or
+((100 - 51) / (35.4 - 12.1) * ((avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) > 12 and avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) <= 35.4) - 12.1) + 51) or
+((150 - 101) / (55.4 - 35.5) * ((avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) > 35.4 and avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) <= 55.4) - 35.5) + 101) or
+((200 - 151) / (150.4 - 55.5) * ((avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) > 55.4 and avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) <= 150.4) - 55.5) + 151) or
+((300 - 201) / (250.4 - 150.5) * ((avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) > 150.4 and avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) <= 250.4) - 150.5) + 201) or
+((400 - 301) / (350.4 - 250.5) * ((avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) > 250.4 and avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) <= 350.4) - 250.5) + 301) or
+((500 - 401) / (500.4 - 350.5) * ((avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) > 350.4 and avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) <= 500.4) - 350.5) + 401) or
+clamp_max(avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]), 600)
+....
+
+It's based off of this formula:
+....
+((I_h - I_l) / (C_h - C_l) * ((avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) > C_l and avg_over_time(ambient_pm25_env{instance=~"$room.*"}[$aqi_interval]) <= C_h) - C_l) + I_l) or
+....
+
+See
+1. https://en.wikipedia.org/wiki/Air_quality_index#Computing_the_AQI
+1. https://www.airnow.gov/sites/default/files/2020-05/aqi-technical-assistance-document-sept2018.pdf
