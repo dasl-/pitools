@@ -26,6 +26,11 @@ dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remot
 .. Performance > Prometheus type: `Prometheus`
 . Add https://grafana.com/grafana/dashboards/1860-node-exporter-full/["Node Exporter Full"] dashboard http://study.local:3000/dashboard/import :
 .. Import via grafana.com: `1860` (this is the dashboard ID)
+. Setup email alerting smtp server
+.. Edit `/etc/grafana/grafana.ini`
+.. Add the https://gist.github.com/dasl-/4cfd313b284ccb25f7e87814a87a9584[smtp config]
+.. Note that it requires using a gmail "app password". It's saved in bitwarden.
+.. Restart Grafana: `sudo systemctl restart grafana-server.service`
 
 ## Files used
 The grafana DB is a sqlite file: `sudo sqlite3 /var/lib/grafana/grafana.db`
