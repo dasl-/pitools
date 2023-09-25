@@ -214,7 +214,7 @@ buildShairportSync(){
     local coredump_file='/etc/sysctl.d/core.conf'
     if [ ! -f $coredump_file ]; then
         info "Updating the coredump location. A restart is required and will be automatically performed at this script's conclusion."
-        echo '/tmp/coredump-%e-sig%s-user%u-group%g-pid%p-time%t' | sudo tee $coredump_file >/dev/null
+        echo 'kernel.core_pattern = /tmp/coredump-%e-sig%s-user%u-group%g-pid%p-time%t' | sudo tee $coredump_file >/dev/null
         touch $RESTART_REQUIRED_FILE
     fi
 
