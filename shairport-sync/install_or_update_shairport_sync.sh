@@ -10,6 +10,7 @@ set -euo pipefail -o errtrace
 BASE_DIR=$HOME
 NAME=''
 CONFIG=/boot/config.txt
+RESTART_REQUIRED_FILE='/tmp/install_shairport_sync_restart.file'
 
 SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
 SHAIRPORT_SYNC_CLONE_URL=https://github.com/mikebrady/shairport-sync.git
@@ -54,7 +55,12 @@ main(){
     maybeConfigureShairportSync
     startShairportSyncService
 
-    info "Success!"
+    info "Finished installing or updating shairport sync!"
+
+    if [ -f $RESTART_REQUIRED_FILE ]; then
+        info "Restarting..."
+        sudo shutdown -r now
+    fi
 }
 
 parseOpts(){
@@ -205,6 +211,12 @@ buildShairportSync(){
 
     # Enable core dumps: https://github.com/mikebrady/shairport-sync/issues/1479
     printf "\n[Service]\nLimitCORE=infinity\n" | sudo tee --append /lib/systemd/system/shairport-sync.service >/dev/null
+    local coredump_file='/etc/sysctl.d/core.conf'
+    if [ ! -f $coredump_file ]; then
+        info "Updating the coredump location. A restart is required and will be automatically performed at this script's conclusion."
+        echo '/tmp/coredump-%e-sig%s-user%u-group%g-pid%p-time%t' | sudo tee $coredump_file >/dev/null
+        touch $RESTART_REQUIRED_FILE
+    fi
 
     # Enable automatic restarting of the service - we've had problems with rarely occurring segfaults.
     # Segfaults generally occur less than once per month.
