@@ -39,6 +39,7 @@ main(){
     installReadlineHack
     setTimezone
     setOverVoltage
+    setTempSoftLimit
     maybeEnableSpi
 
     # Setting the hostname should be as close to the last step as possible. Anything after this step that
@@ -274,6 +275,39 @@ setOverVoltage(){
     sudo sed $CONFIG -i -e "s/^\(over_voltage=.*\)/#\1/"
 
     echo -e 'over_voltage=2' | sudo tee -a $CONFIG >/dev/null
+}
+
+# See:
+# https://www.raspberrypi.com/documentation/computers/config_txt.html#monitoring-core-temperature
+# https://www.raspberrypi.com/documentation/computers/config_txt.html#overclocking
+#
+# Only applicable to raspberry pi 3A+/3B+. The default soft limit of 60 is low enough that we'd
+# occasionally see spurious CPU throttling occur. Let's set it to the max allowed: 70.
+# I think we're unlikely to reach 70 degrees doing anything we normally do with the pis.
+# Thus the point of having a soft limit is moot for our use case - it will just result in
+# unnecessary throttling.
+setTempSoftLimit(){
+    local is_3aplus_or_3bplus=false
+    is_3aplus_or_3bplus=$(grep -q 'Raspberry Pi 3 Model [AB] Plus' /proc/device-tree/model)
+    if [[ ${is_3aplus_or_3bplus} == "false" ]]; then
+        info "not setting temp_soft_limit because this is not a Raspberry Pi 3A+/3B+"
+        return
+    fi
+
+    local temp_soft_limit
+    temp_soft_limit=$(vcgencmd get_config temp_soft_limit | sed -n 's/temp_soft_limit=\(.*\)/\1/p')
+    if (( temp_soft_limit >= 70 )); then
+        info "temp_soft_limit was already high enough ( $temp_soft_limit )..."
+        return
+    fi
+
+    # Set temp_soft_limit.
+    info "Setting temp_soft_limit to 70..."
+
+    # comment out existing temp_soft_limit lines in config
+    sudo sed $CONFIG -i -e "s/^\(temp_soft_limit=.*\)/#\1/"
+
+    echo -e 'temp_soft_limit=70' | sudo tee -a $CONFIG >/dev/null
 }
 
 maybeEnableSpi(){
