@@ -10,8 +10,14 @@ main(){
     info "\\nDisabling raspberry pi LEDs..."
 
     # https://www.jeffgeerling.com/blogs/jeff-geerling/controlling-pwr-act-leds-raspberry-pi
+    #
+    # Seems like the GH issue linked by the Jeff Geerling article has an update regarding
+    # disabling the power LED. It supercedes even some info in the JG article at time
+    # of writing.
+    #
+    # https://github.com/raspberrypi/firmware/issues/1742#issuecomment-1472359124
     printf "\n# Disable the ACT LED.\ndtparam=act_led_trigger=none\ndtparam=act_led_activelow=off\n" | sudo tee --append $CONFIG >/dev/null
-    printf "\n# Disable the PWR LED.\ndtparam=pwr_led_trigger=default-on\ndtparam=pwr_led_activelow=off\n" | sudo tee --append $CONFIG >/dev/null
+    printf "\n# Disable the PWR LED.\ndtparam=pwr_led_trigger=none\n" | sudo tee --append $CONFIG >/dev/null
 
     info "\\nDone, please reboot for the LEDs to be disabled."
 }
