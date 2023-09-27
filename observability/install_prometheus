@@ -88,11 +88,11 @@ scrape_configs:
             "piwall10:9100",
         ]
 
-# Remove the port number suffix from the instance labels
-relabel_configs:
-  - source_labels: [__address__]
-      regex: "([^:]+):\\d+"
-      target_label: instance
+    # Remove the port number suffix from the instance labels
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: "([^:]+):\\d+"
+        target_label: instance
 EOF
 }
 
