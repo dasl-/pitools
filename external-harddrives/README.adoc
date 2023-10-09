@@ -71,10 +71,10 @@ SD card:
           102400       4      2459      2101      6022      6446      6685      1474
 
 iozone test complete.
- ....
+....
 
- USB SSD:
- ....
+USB SSD:
+....
  % sudo hdparm -t /dev/sda
 
 /dev/sda:
@@ -119,4 +119,9 @@ iozone test complete.
           102400       4     10835     12687     12420     12554      8040     12724
 
 iozone test complete.
- ....
+....
+
+## Equipment
+https://www.amazon.com/dp/B06XWRRMYX?psc=1&ref=ppx_yo2ov_dt_b_product_details[UGREEN hard drive enclosure] is compatible with raspberry pi. It gets better speeds than other enclosures on benchmarks.
+
+https://www.amazon.com/Samsung-Class-Micro-Adapter-MB-MC32DA/dp/B00WR4IJBE/ref=as_li_ss_tl?keywords=samsung+evo++microsd&qid=1562707245&s=gateway&sr=8-5&linkCode=ll1&tag=mmjjg-20&linkId=019797e6b450340f7d7c739ae8ad1203&language=en_US[Samsung EVO Plus SD card], recommended by https://www.jeffgeerling.com/blog/2019/raspberry-pi-microsd-card-performance-comparison-2019[Jeff Geerling's guide].
