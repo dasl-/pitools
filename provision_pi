@@ -287,9 +287,7 @@ setOverVoltage(){
 # Thus the point of having a soft limit is moot for our use case - it will just result in
 # unnecessary throttling.
 setTempSoftLimit(){
-    local is_3aplus_or_3bplus=false
-    is_3aplus_or_3bplus=$(grep -q 'Raspberry Pi 3 Model [AB] Plus' /proc/device-tree/model)
-    if [[ ${is_3aplus_or_3bplus} == "false" ]]; then
+    if ! grep -q 'Raspberry Pi 3 Model [AB] Plus' /proc/device-tree/model ; then
         info "not setting temp_soft_limit because this is not a Raspberry Pi 3A+/3B+"
         return
     fi
