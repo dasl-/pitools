@@ -30,7 +30,7 @@ main(){
 
 updatePackages(){
     info "Updating and installing packages..."
-    sudo python3 -m pip install --upgrade adafruit-circuitpython-pm25 prometheus-client
+    sudo PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --upgrade adafruit-circuitpython-pm25 prometheus-client
 }
 
 setupSystemd(){

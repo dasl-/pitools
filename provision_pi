@@ -30,6 +30,7 @@ main(){
     parseOpts "$@"
 
     setupSshKey
+    unfuckPip
     updateAndInstallPackages
     setupGit
     setupGitDelta
@@ -114,7 +115,7 @@ updateAndInstallPackages(){
     sudo apt -y install git mlocate vim zsh zsh-syntax-highlighting python3-pip
     sudo apt -y full-upgrade
 
-    sudo python3 -m pip install --break-system-packages --upgrade speedtest-cli
+    sudo PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --upgrade speedtest-cli
 }
 
 setupGit(){

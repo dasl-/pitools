@@ -47,7 +47,7 @@ def validateDependencies():
         import passlib
     except ImportError:
         print("The passlib package is required. Please install it: " +
-            "'sudo -H python3 -m pip install --upgrade passlib'.", file = sys.stderr)
+            "'sudo -H PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --upgrade passlib'.", file = sys.stderr)
         sys.exit(1)
 
 # https://www.raspberrypi.org/documentation/installation/installing-images/mac.md

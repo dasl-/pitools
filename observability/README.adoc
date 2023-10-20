@@ -4,18 +4,19 @@
 
 ## Summary
 . Install node_exporter on all pis
+. Install pitoolsmon on all pis
 . install grafana and prometheus on one host: study.local
 . Access grafana at http://study.local:3000
 
 ## node_exporter dsh install command
 ....
-dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@kitchen.local,pi@bedroom.local,pi@piwall.local,pi@piwall1.local,pi@piwall2.local,pi@piwall3.local,pi@piwall4.local,pi@piwall5.local,pi@piwall6.local,pi@piwall7.local,pi@piwall8.local,pi@piwall9.local,pi@piwall10.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/observability/install_node_exporter' && sleep 5 && echo 'study,pifi,kitchen,bedroom,piwall,piwall1,piwall2,piwall3,piwall4,piwall5,piwall6,piwall7,piwall8,piwall9,piwall10' | sed 's/,/\n/g' | parallel --tag --keep-order --max-args 1 --jobs 0 --will-cite curl --silent {}.local:9100/metrics | grep 'promhttp_metric_handler_requests_total{code="200"}'
+dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@kitchen.local,pi@watchcat.local,pi@bedroom.local,pi@piwall.local,pi@piwall1.local,pi@piwall2.local,pi@piwall3.local,pi@piwall4.local,pi@piwall5.local,pi@piwall6.local,pi@piwall7.local,pi@piwall8.local,pi@piwall9.local,pi@piwall10.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/observability/install_node_exporter' && sleep 5 && echo 'study,pifi,kitchen,watchcat,bedroom,piwall,piwall1,piwall2,piwall3,piwall4,piwall5,piwall6,piwall7,piwall8,piwall9,piwall10' | sed 's/,/\n/g' | parallel --tag --keep-order --max-args 1 --jobs 0 --will-cite curl --silent {}.local:9100/metrics | grep 'promhttp_metric_handler_requests_total{code="200"}'
 ....
 
 ## pitoolsmon dsh install command
 Pitoolsmon is a custom pitools monitoring script that emits various pi metrics to prometheus. Install `node_exporter` before installing pitoolsmon.
 ....
-dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@kitchen.local,pi@bedroom.local,pi@piwall.local,pi@piwall1.local,pi@piwall2.local,pi@piwall3.local,pi@piwall4.local,pi@piwall5.local,pi@piwall6.local,pi@piwall7.local,pi@piwall8.local,pi@piwall9.local,pi@piwall10.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/observability/install_pitoolsmon' && sleep 11 && echo 'study,pifi,kitchen,bedroom,piwall,piwall1,piwall2,piwall3,piwall4,piwall5,piwall6,piwall7,piwall8,piwall9,piwall10' | sed 's/,/\n/g' | parallel --tag --keep-order --max-args 1 --jobs 0 --will-cite 'curl --silent {}.local:9100/metrics | grep -E "^pitoolsmon_throttling_has_occurred"'
+dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@kitchen.local,pi@watchcat.local,pi@bedroom.local,pi@piwall.local,pi@piwall1.local,pi@piwall2.local,pi@piwall3.local,pi@piwall4.local,pi@piwall5.local,pi@piwall6.local,pi@piwall7.local,pi@piwall8.local,pi@piwall9.local,pi@piwall10.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/observability/install_pitoolsmon' && sleep 11 && echo 'study,pifi,kitchen,watchcat,bedroom,piwall,piwall1,piwall2,piwall3,piwall4,piwall5,piwall6,piwall7,piwall8,piwall9,piwall10' | sed 's/,/\n/g' | parallel --tag --keep-order --max-args 1 --jobs 0 --will-cite 'curl --silent {}.local:9100/metrics | grep -E "^pitoolsmon_throttling_has_occurred"'
 ....
 
 ## Grafana configuration
