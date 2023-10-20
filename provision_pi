@@ -114,7 +114,7 @@ updateAndInstallPackages(){
     sudo apt -y install git mlocate vim zsh zsh-syntax-highlighting python3-pip
     sudo apt -y full-upgrade
 
-    sudo python3 -m pip install --upgrade speedtest-cli
+    sudo python3 -m pip install --break-system-packages --upgrade speedtest-cli
 }
 
 setupGit(){
