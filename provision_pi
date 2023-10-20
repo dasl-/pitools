@@ -30,7 +30,6 @@ main(){
     parseOpts "$@"
 
     setupSshKey
-    unfuckPip
     updateAndInstallPackages
     setupGit
     setupGitDelta
