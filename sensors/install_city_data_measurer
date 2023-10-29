@@ -12,12 +12,7 @@ main(){
     updatePackages
     setupSystemd
 
-    info "\\nFinished installing PMSA003I."
-
-    if [ -f $RESTART_REQUIRED_FILE ]; then
-        info "Restarting..."
-        sudo shutdown -r now
-    fi
+    info "\\nFinished installing city data measurer."
 }
 
 updatePackages(){
