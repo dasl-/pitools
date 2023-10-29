@@ -18,7 +18,7 @@ def main():
             continue
 
         pm25_city_gauge.set(data['pm25 city'])
-        prometheus_client.write_to_textfile('/home/pi/observability/textfile_collector_data/city_air_quality.prom', registry)
+        prometheus_client.write_to_textfile('/home/pi/observability/textfile_collector_data/city_data.prom', registry)
 
 # Save disk space by not collecting unneeded stats.
 def setup_prometheus():
