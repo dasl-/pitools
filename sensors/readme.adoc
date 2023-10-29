@@ -2,6 +2,11 @@
 :toc:
 :toclevels: 5
 
+## Summary
+. Install bme280 sensor stuff on whichever pis the humidity sensors are hooked up to
+. Install pmsa003i sensor stuff on whichever pis the air quality sensors are hooked up to
+. Install city data measurer on study.local - this measures local city data, e.g. local air quality
+
 ## dsh to install or update air quality & temp + humidity sensors on multiple pis:
 ....
 dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@bedroom.local,pi@kitchen.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/sensors/install_bme280_temp_humidity_sensor && /home/pi/development/pitools/sensors/install_pmsa003i_air_quality_sensor' && dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@bedroom.local,pi@kitchen.local "sudo systemctl status 'measure_*'"

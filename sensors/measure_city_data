@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+
+import time
+import requests
+import prometheus_client
+
+# Records local city pm2.5 data for graphing in prometheus
+def main():
+    registry, pm25_city_gauge = setup_prometheus()
+    while True:
+        # Scrape city data once per hour
+        time.sleep(3600)
+
+        try:
+            data = get_data()
+        except Exception as e:
+            print(f"Unable to get local city AQI data: {e}")
+            continue
+
+        pm25_city_gauge.set(data['pm25 city'])
+        prometheus_client.write_to_textfile('/home/pi/observability/textfile_collector_data/city_air_quality.prom', registry)
+
+# Save disk space by not collecting unneeded stats.
+def setup_prometheus():
+    # https://github.com/prometheus/client_python#disabling-default-collector-metrics
+    prometheus_client.REGISTRY.unregister(prometheus_client.GC_COLLECTOR)
+    prometheus_client.REGISTRY.unregister(prometheus_client.PLATFORM_COLLECTOR)
+    prometheus_client.REGISTRY.unregister(prometheus_client.PROCESS_COLLECTOR)
+
+    registry = prometheus_client.CollectorRegistry()
+    pm25_city_gauge = prometheus_client.Gauge('city_pm25', 'Concentration of PM 2.5 in local city. Units: μg/m^3.', registry=registry)
+    return [registry, pm25_city_gauge]
+
+def get_data():
+    # NYC realtime air quality: 
+    # https://a816-dohbesp.nyc.gov/IndicatorPublic/beta/key-topics/airquality/realtime/
+    # We show the average readings from 11 rooftop monitors from the NY State Department of Environmental Conservation (DEC), 
+    # which collects data for the Federal Clean Air Act.
+    url = 'https://azdohv2staticweb.blob.core.windows.net/$web/nyccas_realtime_DEC.csv'
+    response = requests.get(url, timeout=5)
+    if response.status_code != 200:
+        print(f'Got unexpected status code {response.status_code} from {url}')
+    response.raise_for_status()
+    most_recent_pm25_reading = None
+    for line in response.text.splitlines():
+        if line.startswith('DEC_Avg'):
+            most_recent_pm25_reading = line.split(',')[-1]
+    if most_recent_pm25_reading is None:
+        raise Exception('Unable to read data from response')
+    
+    return {
+        'pm25 city': float(most_recent_pm25_reading),
+    }
+
+
+main()
