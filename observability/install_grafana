@@ -19,6 +19,13 @@ main(){
     sudo apt-get update
     sudo apt-get install -y grafana
 
+    # Move storage of grafana sqlite DB to external SSD to ensure speedy, stable access
+    info "\\nSetting up data storage on external SSD..."
+    sudo mkdir -p /ssd/grafana-data
+    sudo chown -R grafana:grafana /ssd/grafana-data
+    # See: https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/#data
+    sudo sed -i -e 's|^;data = /var/lib/grafana|data = /ssd/grafana-data|' /etc/grafana/grafana.ini
+
     info "\\nSetting up systemd..."
     sudo systemctl enable grafana-server
     sudo systemctl daemon-reload
