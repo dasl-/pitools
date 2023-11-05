@@ -34,13 +34,13 @@ dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remot
 .. Restart Grafana: `sudo systemctl restart grafana-server.service`
 
 ## Files used
-The grafana DB is a sqlite file: `sudo sqlite3 /var/lib/grafana/grafana.db`
+The grafana DB is a sqlite file. We moved it from its default location (`/var/lib/grafana/grafana.db`) to a new location (`/ssd/grafana-data/grafana.db`). This is because the new location is on external SSD storage, which is faster and more reliable.
 
 Prometheus stores data at the path specified by the `--storage.tsdb.path` flag.
 
 ## Backup grafana data
 It's a good idea to back up your dashboards data periodically. Currently the process is manual. Dashboards data includes the json that defines the dashboard. It does NOT include the prometheus time series DB.
 ....
-ssh pi@study.local 'sudo chmod a+r /var/lib/grafana/grafana.db' && scp pi@study.local:/var/lib/grafana/grafana.db ~/Downloads
+ssh pi@study.local 'sudo chmod a+r /ssd/grafana-data/grafana.db' && scp pi@study.local:/ssd/grafana-data/grafana.db ~/Downloads
 ....
 Upload it here: https://drive.google.com/drive/u/0/folders/1ykL8-Zm2OvSODugE2xQGHNE5xXOhoz8o
