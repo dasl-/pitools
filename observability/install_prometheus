@@ -74,7 +74,7 @@ scrape_configs:
             "study:9100",
             "pifi:9100",
             "kitchen:9100",
-            "watchcat:9100",
+            "scaredycat:9100",
             "bedroom:9100",
             "piwall:9100",
             "piwall1:9100",
