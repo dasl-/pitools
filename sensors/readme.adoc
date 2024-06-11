@@ -39,6 +39,6 @@ See
 
 ## Sensor wiring
 
-image::img/sensor_wiring1.jpg[]
+image::img/sensor_wiring1.jpg[wiring,300]
 
-image::img/sensor_wiring2.jpg[]
+image::img/sensor_wiring2.jpg[wiring,300]
