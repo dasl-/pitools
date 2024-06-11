@@ -5,6 +5,16 @@ set -euo pipefail -o errtrace
 main(){
     trap 'fail $? $LINENO' ERR
 
+    installGrafana
+    configureGrafana
+    setupSystemd
+
+    local grafana_url
+    grafana_url="http://$(hostname).local:3000"
+    info "\\nFinished installing grafana. Wait ~1 minute for it to be ready; then access it at: $grafana_url"
+}
+
+installGrafana(){
     # https://grafana.com/tutorials/install-grafana-on-raspberry-pi/#install-grafana
     info "\\nInstalling grafana..."
 
@@ -18,6 +28,10 @@ main(){
     info "\\nInstalling package..."
     sudo apt-get update
     sudo apt-get install -y grafana
+}
+
+configureGrafana(){
+    info "\\nConfiguring grafana..."
 
     # Move storage of grafana sqlite DB to external SSD to ensure speedy, stable access
     info "\\nSetting up data storage on external SSD..."
@@ -26,14 +40,22 @@ main(){
     # See: https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/#data
     sudo sed -i -e 's|^;data = /var/lib/grafana|data = /ssd/grafana-data|' /etc/grafana/grafana.ini
 
+    info "\\nConfiguring auth..."
+    # Don't require logging in to view the dashboards
+    # See: https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/configure-authentication/#anonymous-authentication
+    sudo sed -i -z -e 's|# enable anonymous access\n;enabled = false|# enable anonymous access\nenabled = true|' /etc/grafana/grafana.ini
+
+    # Don't require users to login so frequently
+    # https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/configure-authentication/#login-and-short-lived-tokens
+    sudo sed -i -e 's|^;login_maximum_inactive_lifetime_duration =|login_maximum_inactive_lifetime_duration = 10y|' /etc/grafana/grafana.ini
+    sudo sed -i -e 's|^;login_maximum_lifetime_duration =|login_maximum_lifetime_duration = 10y|' /etc/grafana/grafana.ini
+}
+
+setupSystemd(){
     info "\\nSetting up systemd..."
     sudo systemctl enable grafana-server
     sudo systemctl daemon-reload
     sudo systemctl restart grafana-server
-
-    local grafana_url
-    grafana_url="http://$(hostname).local:3000"
-    info "\\nFinished installing grafana. Wait ~1 minute for it to be ready; then access it at: $grafana_url"
 }
 
 fail(){
