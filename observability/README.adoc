@@ -44,3 +44,9 @@ It's a good idea to back up your dashboards data periodically. Currently the pro
 ssh pi@study.local 'sudo chmod a+r /ssd/grafana-data/grafana.db' && scp pi@study.local:/ssd/grafana-data/grafana.db ~/Downloads
 ....
 Upload it here: https://drive.google.com/drive/u/0/folders/1ykL8-Zm2OvSODugE2xQGHNE5xXOhoz8o
+
+## Issues we've seen before
+
+### Browser unable to render grafana page with "failed to load its application files" error message
+
+Navigating to the grafana URL would show an https://github.com/grafana/grafana/issues/65759[error page], but only on some clients. It turned out this was because my iOS version of safari was outdated and no longer https://grafana.com/docs/grafana/latest/setup-grafana/installation/#supported-web-browsers[supported] by grafana. Perhaps this happened after I upgraded to a new grafana version which no longer supported my browser. I solved this by upgrading iOS (which upgrades safari).
