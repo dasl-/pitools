@@ -42,3 +42,13 @@ See
 image::img/sensor_wiring1.jpg[wiring,300]
 
 image::img/sensor_wiring2.jpg[wiring,300]
+
+## Issues we've seen before
+
+### Invalid sensor data
+
+Sometimes the sensors stop working. This can be detected if you see anomalous sensor output in graphs. The temperature / humidity data may be constant over time, simply returning the last value it saw before it stopped working. And the air quality sensor may report very high particulate matter readings (the maximum value).
+
+The systemd units may be in a failed state. Checking logs, you may see stuff https://gist.github.com/dasl-/3a00792fd658a122e8da48584099d538[like this]. It's possible that either sensor could fail while the other is still working.
+
+To fix, shutdown the pi and make sure all cables are snuggly connected. There may be a loose connection. Reboot the pi, and hopefully all will be fixed.
