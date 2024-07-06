@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+
+# sudo PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --upgrade pytest-playwright
+# playwright install
+# sudo playwright install-deps
+
+import pytz
+import re
+from playwright.sync_api import sync_playwright
+
+# It would likely be simpler, less janky, and less CPU intensive, and faster to use TOTP authentication rather than
+# browser scraping to get the coned data. This took 1m 40s to execute on a raspbery pi 3B+
+#
+# The TOTP approach is outlined here:
+# https://github.com/tronikos/opower/blob/main/src/opower/utilities/coned.py
+# See also: https://github.com/bvlaicu/coned/blob/1f4a0ab88b04a4374173fbd1a004b14079039965/coned/meter.py
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    page = browser.new_page()
+    page.set_default_timeout(50000)
+    page.goto("https://www.coned.com/en/login")
+    page.locator('#form-login-email').press_sequentially('email@example.com')
+    page.locator('#form-login-password').press_sequentially('SUPER SECRET PASSWORD')
+    page.get_by_role("button", name="Log In").click()
+
+    security_question_input = page.locator('#form-login-mfa-code')
+    security_question_input.clear() # wait for it to finish loading https://playwright.dev/python/docs/actionability#introduction
+    security_question_input.press_sequentially('SUPER SECRET SECURITY QUESTION ANSWER')
+    page.get_by_role("button", name="Submit").click()
+    page.locator('.my-account__modules').select_text() # wait for login to complete
+
+    with page.expect_response(re.compile(r"https://cned\.opower\.com/ei/edge/apis/cws-real-time-ami-v1/cws/cned/accounts/.*/usage.*")) as response_info:
+        page.goto('https://www.coned.com/en/accounts-billing/my-account/energy-use?tab1=sectionRealTimeData-2')
+    response = response_info.value
+    response_body = response.text()
+    print(response_body)
+
+
