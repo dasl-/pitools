@@ -49,7 +49,7 @@ def get_data():
     dt = datetime.datetime.strptime(time_of_most_recent_reading, '%Y-%m-%dT%H:%M:%S')
     ny_tz = pytz.timezone('America/New_York')
     localized_dt = ny_tz.localize(dt)
-    unix_time_ms = int(round(localized_dt.timestamp() * 1000))
+    unix_time_ms = int(round(localized_dt.timestamp()))
     if not unix_time_ms:
         raise Exception('Unable to parse timestamp from response')
 
