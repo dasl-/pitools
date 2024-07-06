@@ -13,7 +13,7 @@ def main():
     registry = setup_prometheus()
     while True:
         # Scrape city data once per hour
-        time.sleep(5) # TODO
+        time.sleep(3600)
         prometheus_client.write_to_textfile('/home/pi/observability/timestamped_textfile_collector_data/city_data.prom', registry)
 
 # Save disk space by not collecting unneeded stats.
