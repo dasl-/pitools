@@ -3,6 +3,10 @@
 import time
 import requests
 import prometheus_client
+import datetime
+import pytz
+import threading
+import os
 
 # Records local city pm2.5 data for graphing in prometheus
 def main():
@@ -14,11 +18,13 @@ def main():
         try:
             data = get_data()
         except Exception as e:
-            print(f"Unable to get local city AQI data: {e}")
+            print(f"Unable to get local city AQI data: {e}", flush = True)
             continue
 
-        pm25_city_gauge.set(data['pm25 city'])
-        prometheus_client.write_to_textfile('/home/pi/observability/textfile_collector_data/city_data.prom', registry)
+        pm25_city_gauge.set(data['pm25 city'][0])
+        write_to_textfile_with_hacked_timestamp(
+            '/home/pi/observability/textfile_collector_data/city_data.prom', registry, data['pm25 city'][1]
+        )
 
 # Save disk space by not collecting unneeded stats.
 def setup_prometheus():
@@ -32,25 +38,77 @@ def setup_prometheus():
     return [registry, pm25_city_gauge]
 
 def get_data():
-    # NYC realtime air quality: 
+    # NYC realtime air quality:
     # https://a816-dohbesp.nyc.gov/IndicatorPublic/beta/key-topics/airquality/realtime/
-    # We show the average readings from 11 rooftop monitors from the NY State Department of Environmental Conservation (DEC), 
+    # We show the average readings from 11 rooftop monitors from the NY State Department of Environmental Conservation (DEC),
     # which collects data for the Federal Clean Air Act.
     url = 'https://azdohv2staticweb.blob.core.windows.net/$web/nyccas_realtime_DEC.csv'
     response = requests.get(url, timeout=5)
     if response.status_code != 200:
-        print(f'Got unexpected status code {response.status_code} from {url}')
+        print(f'Got unexpected status code {response.status_code} from {url}', flush = True)
     response.raise_for_status()
     most_recent_pm25_reading = None
     for line in response.text.splitlines():
         if line.startswith('DEC_Avg'):
-            most_recent_pm25_reading = line.split(',')[-1]
+            parts = line.split(',')
+            most_recent_pm25_reading = parts[-1]
+            time_of_most_recent_reading = parts[-3]
     if most_recent_pm25_reading is None:
         raise Exception('Unable to read data from response')
-    
+
+    dt = datetime.datetime.strptime(time_of_most_recent_reading, '%Y-%m-%dT%H:%M:%S')
+    ny_tz = pytz.timezone('America/New_York')
+    localized_dt = ny_tz.localize(dt)
+    unix_time_s = int(round(localized_dt.timestamp()))
+    if not unix_time_s:
+        raise Exception('Unable to read timestamp from response')
+
     return {
-        'pm25 city': float(most_recent_pm25_reading),
+        'pm25 city': [float(most_recent_pm25_reading), unix_time_s]
     }
+
+# NYC air quality data is delayed 2-4 hours. But the data has a timestamp associated with it.
+# Let's pass the timestamp associated with the "delayed" data point to prometheus
+# so that it associates the data point with the proper time.
+#
+# I tried setting the timestamp with a custom collector:
+# https://gist.github.com/dasl-/8cdb7707343ff32a467fa53ce32471a8#file-test-py-L84
+#
+# This wrote the textfile correctly:
+#
+#   % cat /home/pi/observability/textfile_collector_data/city_data.prom
+#   HELP city_pm25 Concentration of PM 2.5 in local city. Units: μg/m^3.
+#   TYPE city_pm25 gauge
+#   city_pm25 6.29 1720252800000
+#
+# But prometheus is quite opinionated. The NODE_EXPORTER had errors:
+#
+# Jul  6 11:01:53 study NODE_EXPORTER[669]: ts=2024-07-06T11:01:53.564Z caller=textfile.go:227 level=error collector=textfile msg="failed to collect textfile data" file=city_data.prom err="textfile \"/home/pi/observability/textfile_collector_data/city_data.prom\" contains unsupported client-side timestamps, skipping entire file"
+#
+# "Note: Timestamps are not supported"
+# https://github.com/prometheus/node_exporter/blob/4cc1c177d05e80176f26fe1ca2a1f193c03c67a0/README.md#textfile-collector
+#
+# https://github.com/prometheus/node_exporter/blob/4cc1c177d05e80176f26fe1ca2a1f193c03c67a0/collector/textfile.go#L82
+# https://groups.google.com/g/prometheus-users/c/Zg1EJltYwp0
+# https://github.com/prometheus/node_exporter/issues/1284
+#
+# So let's hack it by setting the mtime of the file that's written out.
+#
+# Cribbed from:
+# https://github.com/prometheus/client_python/blob/09a5ae30602a7a81f6174dae4ba08b93ee7feed2/prometheus_client/exposition.py#L352
+def write_to_textfile_with_hacked_timestamp(path, registry, unix_time_s):
+    tmppath = f'{path}.{os.getpid()}.{threading.current_thread().ident}'
+    with open(tmppath, 'wb') as f:
+        f.write(prometheus_client.generate_latest(registry))
+
+    # mtime hack!
+    os.utime(tmppath, (unix_time_s, unix_time_s))
+
+    # rename(2) is atomic but fails on Windows if the destination file exists
+    if os.name == 'nt':
+        os.replace(tmppath, path)
+    else:
+        os.rename(tmppath, path)
 
 
 main()
