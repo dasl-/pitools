@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+set -euo pipefail -o errtrace
+
+BASE_DIR="$(dirname "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )")"
+INSTALL_DIR="/home/pi/observability"
+TEXTFILE_DIRECTORY="$INSTALL_DIR/timestamped_textfile_collector_data"
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    info "\\nInstalling Timestamped Exporter..."
+
+    mkdir -p $TEXTFILE_DIRECTORY
+    setupSystemd
+
+    info "\\nFinished installing Timestamped Exporter."
+}
+
+setupSystemd(){
+    info "\\nSetting up systemd..."
+
+cat <<-EOF | sudo tee /etc/systemd/system/timestamped_exporter.service >/dev/null
+[Unit]
+Description=timestamped_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=HOME=/root
+ExecStart=$BASE_DIR/observability/timestamped_exporter
+Restart=on-failure
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=TIMESTAMPED_EXPORTER
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo chown root:root /etc/systemd/system/timestamped_exporter.service
+    sudo chmod 644 /etc/systemd/system/timestamped_exporter.service
+    sudo systemctl enable /etc/systemd/system/timestamped_exporter.service
+    sudo systemctl daemon-reload
+    sudo systemctl restart timestamped_exporter.service
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
+    exit 1
+}
+
+main "$@"

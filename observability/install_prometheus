@@ -72,6 +72,7 @@ scrape_configs:
     static_configs:
       - targets: [
             "study:9100",
+            "study:9101",
             "pifi:9100",
             "kitchen:9100",
             "scaredycat:9100",
@@ -94,6 +95,13 @@ scrape_configs:
       - source_labels: [__address__]
         regex: "([^:]+):\\\\d+"
         target_label: instance
+
+storage:
+  tsdb:
+    # https://promlabs.com/blog/2022/10/05/whats-new-in-prometheus-2-39/#experimental-out-of-order-ingestion
+    # https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tsdb
+    # https://github.com/dasl-/pitools/blob/main/observability/README.adoc#timestamped_exporter
+    out_of_order_time_window: 1d
 EOF
 }
 

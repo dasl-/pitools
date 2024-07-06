@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+
+import http.server
+import traceback
+import os
+
+class ServerRequestHandler(http.server.BaseHTTPRequestHandler):
+
+    def __init__(self, request, client_address, server):
+        http.server.BaseHTTPRequestHandler.__init__(self, request, client_address, server)
+
+    def do_OPTIONS(self):
+        self.send_response(200, "ok")
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'X-Requested-With')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+
+    def do_GET(self):
+        content = ''
+        prom_dir = '/home/pi/observability/timestamped_textfile_collector_data'
+        try:
+            for file in os.listdir(prom_dir):
+                if file.endswith(".prom"):
+                    path = os.path.join(prom_dir, file)
+                    content += open(path, 'r').read()
+
+            self.send_response(200)
+        except Exception:
+            self.log_error("")
+            self.log_error(f'Unable to open file at {self.path}. Exception: {traceback.format_exc()}')
+            self.__do_404()
+            return
+
+        if self.path.endswith('.js'):
+            self.send_header("Content-Type", "text/javascript")
+        elif self.path.endswith('.css'):
+            self.send_header("Content-Type", "text/css")
+        elif self.path.endswith('.svg') or self.path.endswith('.svgz'):
+            self.send_header("Content-Type", "image/svg+xml")
+        self.end_headers()
+
+        if type(content) is bytes:
+            self.wfile.write(content)
+        else:
+            self.wfile.write(bytes(content, 'utf-8'))
+        return
+
+    def __do_404(self):
+        self.send_response(404)
+        self.end_headers()
+
+    def log_request(self, code='-', size='-'):
+        if isinstance(code, http.server.HTTPStatus):
+            code = code.value
+        print('[REQUEST] "%s" %s %s', self.requestline, str(code), str(size), flush = True)
+
+    def log_error(self, format, *args):
+        print("%s - - %s" % (self.client_address[0], format % args), flush = True)
+
+    def log_message(self, format, *args):
+        print("%s - - %s" % (self.client_address[0], format % args), flush = True)
+
+class TimestampedExporterThreadingHTTPServer(http.server.ThreadingHTTPServer):
+
+    # Override: https://github.com/python/cpython/blob/18cb2ef46c9998480f7182048435bc58265c88f2/Lib/socketserver.py#L421-L443
+    # See: https://docs.python.org/3/library/socketserver.html#socketserver.BaseServer.request_queue_size
+    # This prevents messages we might see in `dmesg` like:
+    #   [Sat Jan 29 00:44:36 2022] TCP: request_sock_TCP: Possible SYN flooding on port 80. Sending cookies.  Check SNMP counters.
+    request_queue_size = 128
+
+class Server:
+
+    def __init__(self):
+        print('Starting up server...', flush = True)
+        self.__server = TimestampedExporterThreadingHTTPServer(('0.0.0.0', 9101), ServerRequestHandler)
+
+    def serve_forever(self):
+        print('Server is serving forever...', flush = True)
+        self.__server.serve_forever()
+
+
+Server().serve_forever()

@@ -5,7 +5,7 @@
 ## Summary
 . Install node_exporter on all pis
 . Install pitoolsmon on all pis
-. install grafana and prometheus on one host: study.local
+. install timestamped_exporter, grafana, and prometheus on one host: study.local
 . Access grafana at http://study.local:3000
 
 ## node_exporter dsh install command
@@ -18,6 +18,21 @@ Pitoolsmon is a custom pitools monitoring script that emits various pi metrics t
 ....
 dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@study.local,pi@pifi.local,pi@kitchen.local,pi@watchcat.local,pi@bedroom.local,pi@piwall.local,pi@piwall1.local,pi@piwall2.local,pi@piwall3.local,pi@piwall4.local,pi@piwall5.local,pi@piwall6.local,pi@piwall7.local,pi@piwall8.local,pi@piwall9.local,pi@piwall10.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/observability/install_pitoolsmon' && sleep 11 && echo 'study,pifi,kitchen,watchcat,bedroom,piwall,piwall1,piwall2,piwall3,piwall4,piwall5,piwall6,piwall7,piwall8,piwall9,piwall10' | sed 's/,/\n/g' | parallel --tag --keep-order --max-args 1 --jobs 0 --will-cite 'curl --silent {}.local:9100/metrics | grep -E "^pitoolsmon_throttling_has_occurred"'
 ....
+
+## timestamped_exporter
+The timestamped_exporter is a custom implementation of the node_exporter's https://github.com/prometheus/node_exporter?tab=readme-ov-file#textfile-collector[textfile collector]. We need this custom implementation because we have a use case for associating custom timestamps with certain metrics. The node_exporter's textfile collector does not support this:
+
+> Note: Timestamps are not supported.
+
+In order to use custom timestamps that are more than an hour delta from the current time, we needed to enable prometheus's https://promlabs.com/blog/2022/10/05/whats-new-in-prometheus-2-39/#experimental-out-of-order-ingestion[`out_of_order_time_window`] feature. Otherwise we'd get errors like this:
+
+....
+Jul  6 13:12:40 study PROMETHEUS[1733468]: ts=2024-07-06T13:12:40.583Z caller=scrape.go:1729 level=warn component="scrape manager" scrape_pool=node target=http://study:9101/metrics msg="Error on ingesting samples that are too old or are too far into the future" num_dropped=1
+....
+
+The timestamped_exporter is simply a python server that concatenates and serves any `*.prom` files in the directory: `/home/pi/observability/timestamped_textfile_collector_data`. Those metrics will be served at `http://<hostname>:9101/metrics`.
+
+See https://github.com/dasl-/pitools/blob/main/sensors/measure_city_data[`measure_city_data`] for an example of how to write timestamped `*.prom` files such that the timestamped_exporter can export them to prometheus.
 
 ## Grafana configuration
 . The username and password is admin / admin by default on first login. Change password to same as WiFi password. : http://study.local:3000
