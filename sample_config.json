@@ -1,0 +1,18 @@
+{
+    "electricity_credentials": {
+        "email": "email@example.com",
+        "password": "my_password",
+
+        // The TOTP secret is not one of the 6 digit time-based numeric codes. It is a string of
+        // around 16 characters containing the shared secret that enables your authenticator app
+        // to generate the correct time-based code at the appropriate time. The QR codes used
+        // for setting up TOTP accounts contain the secret. Using the TOTP secret, the Opower
+        // integration will be able to generate the correct time-based code when it needs to
+        // authenticate to the ConEd website.
+        //
+        // See:
+        // https://github.com/dasl-/pitools/blob/main/sensors/readme.adoc#electricity-usage-setup
+        // https://www.home-assistant.io/integrations/opower/
+        "totp_secret": "my_totp_secret",
+    }
+}

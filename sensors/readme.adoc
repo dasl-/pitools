@@ -6,11 +6,27 @@
 . Install bme280 sensor stuff on whichever pis the humidity sensors are hooked up to
 . Install pmsa003i sensor stuff on whichever pis the air quality sensors are hooked up to
 . Install city data measurer on study.local - this measures local city data, e.g. local air quality
+. Setup and install electricity usage measurer on study.local. See below for more details.
 
 ## dsh to install or update air quality & temp + humidity sensors on multiple pis:
 ....
 dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@bedroom.local,pi@kitchen.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/sensors/install_bme280_temp_humidity_sensor && /home/pi/development/pitools/sensors/install_pmsa003i_air_quality_sensor' && dsh --remoteshell ssh --remoteshellopt '-o UserKnownHostsFile=/dev/null' --remoteshellopt '-o StrictHostKeyChecking=no' --remoteshellopt '-o LogLevel=ERROR' --concurrent-shell --show-machine-names --machine pi@bedroom.local,pi@kitchen.local "sudo systemctl status 'measure_*'"
 ....
+
+## Electricity usage: setup
+This data collector integrates with Con Ed to get your account's realtime electricity usage from their API.
+
+From the repo's root directory:
+1. `cp https://github.com/dasl-/pitools/blob/main/readme.md[sample_config.json] config.json`
+1. Open `config.json` and write the values for `electricity_credentials.email`, `electricity_credentials.password`, and `electricity_credentials.totp_secret`.
+1. `/home/pi/development/pitools/sensors/install_electricity_usage_measurer`
+
+### Getting the TOTP secret
+See home-assistant's Con Ed integration docs, which I was heavily influenced by: https://www.home-assistant.io/integrations/opower/#consolidated-edison-coned
+
+> The TOTP secret is not one of the 6 digit time-based numeric codes. It is a string of around 16 characters containing the shared secret that enables your authenticator app to generate the correct time-based code at the appropriate time. The QR codes used for setting up TOTP accounts contain the secret. Using the TOTP secret, the Opower integration will be able to generate the correct time-based code when it needs to authenticate to the ConEd website.
+
+In your Con Ed account profile page, you must set your 2-Step Verification mode to Google Authenticator. Con Ed only allows you to do this if you have a phone number associated with your account. After entering a phone number, you may have to wait several hours before Con Ed lets you 2-Step Verification mode to Google Authenticator. Furthermore, the website may give an error mentioning that something went wrong and you have to call Con Ed when trying to setup Google Authenticator. If that happens, try doing it again in a different browser or in an incognito window.
 
 ## AQI calculations
 Prometheus query to convert pm2.5 to AQI:

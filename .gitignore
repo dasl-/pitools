@@ -7,3 +7,4 @@ sftp-config.json
 __pycache__/
 *.db
 *.db.bak
+config.json
