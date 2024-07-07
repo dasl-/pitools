@@ -34,6 +34,8 @@ The timestamped_exporter is simply a python server that concatenates and serves 
 
 See https://github.com/dasl-/pitools/blob/main/sensors/measure_city_data[`measure_city_data`] for an example of how to write timestamped `*.prom` files such that the timestamped_exporter can export them to prometheus.
 
+See my [blog post](https://dasl.cc/2024/07/07/setting-custom-timestamps-for-prometheus-metrics/) on timestamped Prometheus metrics for more details.
+
 ## Grafana configuration
 . The username and password is admin / admin by default on first login. Change password to same as WiFi password. : http://study.local:3000
 . Add prometheus datasource http://study.local:3000/connections/datasources :
