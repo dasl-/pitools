@@ -130,7 +130,7 @@ def format_realtime_usage(realtime_usage):
     formatted_readings = []
 
     for read in latest_readings:
-        dt = datetime.fromisoformat(read['startTime'])
+        dt = datetime.datetime.fromisoformat(read['startTime'])
         unix_time_ms = int(round(dt.timestamp()))
         if not unix_time_ms:
             raise Exception('Unable to parse timestamp from response')
