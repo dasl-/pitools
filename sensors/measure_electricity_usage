@@ -24,7 +24,7 @@ def main():
     registry = setup_prometheus()
     with open(os.path.abspath(os.path.dirname(__file__) + '/..') + '/config.json') as config_json:
         global config
-        config = pyjson5.decode(config_json.read())
+        config = pyjson5.decode(config_json.read())['electricity_credentials']
     while True:
         # Scrape once every 5m. Electricity usage data comes in 15m increments, and it is ~1 hr delayed.
         time.sleep(300)
@@ -123,7 +123,10 @@ async def internal_get_realtime_usage_data():
 # input: something that looks like this: https://gist.github.com/dasl-/4c6da56ecc9e6ee1cf89f7a05dd45cb2
 def format_realtime_usage(realtime_usage):
     readings = list(filter(lambda read: read['value'] is not None, realtime_usage))
-    latest_readings = readings[-5:]
+
+    # Readings are taken every 15m. Get the last 4 hours of readings, in case con ed's website
+    # had an extended outage and we have to  catch up.
+    latest_readings = readings[-16:]
     formatted_readings = []
 
     for read in latest_readings:
