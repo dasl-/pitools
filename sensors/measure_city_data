@@ -6,6 +6,7 @@ import prometheus_client
 from prometheus_client.core import GaugeMetricFamily
 import datetime
 import pytz
+import traceback
 
 # Records local city pm2.5 data for graphing in prometheus
 def main():
@@ -67,8 +68,8 @@ class CustomTimestampedGaugeCollector(prometheus_client.registry.Collector):
     def collect(self):
         try:
             data = get_data()
-        except Exception as e:
-            print(f"Unable to get local city AQI data: {e}", flush = True)
+        except Exception:
+            print(f"Unable to get local city AQI data: {traceback.format_exc()}", flush = True)
             return []
 
         gauge_with_custom_timestamp = GaugeMetricFamily(

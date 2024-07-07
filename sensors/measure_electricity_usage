@@ -9,6 +9,7 @@ import aiohttp
 import pyotp
 import pyjson5
 import os
+import traceback
 
 config = None
 session = None
@@ -26,7 +27,7 @@ def main():
         config = pyjson5.decode(config_json.read())
     while True:
         # Scrape once every 5m. Electricity usage data comes in 15m increments, and it is ~1 hr delayed.
-        time.sleep(5)
+        time.sleep(300)
         prometheus_client.write_to_textfile('/home/pi/observability/timestamped_textfile_collector_data/electricity_data.prom', registry)
 
 # Save disk space by not collecting unneeded stats.
@@ -175,8 +176,8 @@ class CustomTimestampedGaugeCollector(prometheus_client.registry.Collector):
     def collect(self):
         try:
             realtime_usage = asyncio.run(get_realtime_usage_data())
-        except Exception as e:
-            print(f"Unable to get electricity data: {e}", flush = True)
+        except Exception:
+            print(f"Unable to get electricity data: {traceback.format_exc()}", flush = True)
             return []
 
         gauge_with_custom_timestamp = GaugeMetricFamily(

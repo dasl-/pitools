@@ -7,45 +7,45 @@ BASE_DIR="$(dirname "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 &&
 main(){
     trap 'fail $? $LINENO' ERR
 
-    info "\\nInstalling city data measurer..."
+    info "\\nInstalling electricity usage measurer..."
 
     updatePackages
     setupSystemd
 
-    info "\\nFinished installing city data measurer."
+    info "\\nFinished installing electricity usage measurer."
 }
 
 updatePackages(){
     info "Updating and installing packages..."
-    sudo PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --upgrade requests pytz prometheus-client
+    sudo PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --upgrade prometheus-client asyncio aiohttp pyotp pyjson5
 }
 
 setupSystemd(){
     info "\\nSetting up systemd..."
 
-cat <<-EOF | sudo tee /etc/systemd/system/measure_city_data.service >/dev/null
+cat <<-EOF | sudo tee /etc/systemd/system/measure_electricity_usage.service >/dev/null
 [Unit]
-Description=Measures city data, e.g. air quality
+Description=Measures electricity usage
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Environment=HOME=/root
-ExecStart=$BASE_DIR/sensors/measure_city_data
+ExecStart=$BASE_DIR/sensors/measure_electricity_usage
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=MEASURE_CITY_DATA
+SyslogIdentifier=MEASURE_ELECTRICITY_USAGE
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-    sudo chown root:root /etc/systemd/system/measure_city_data.service
-    sudo chmod 644 /etc/systemd/system/measure_city_data.service
-    sudo systemctl enable /etc/systemd/system/measure_city_data.service
+    sudo chown root:root /etc/systemd/system/measure_electricity_usage.service
+    sudo chmod 644 /etc/systemd/system/measure_electricity_usage.service
+    sudo systemctl enable /etc/systemd/system/measure_electricity_usage.service
     sudo systemctl daemon-reload
-    sudo systemctl restart measure_city_data.service
+    sudo systemctl restart measure_electricity_usage.service
 }
 
 fail(){
