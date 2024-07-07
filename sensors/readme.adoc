@@ -18,7 +18,7 @@ This data collector integrates with Con Ed to get your account's realtime electr
 
 From the repo's root directory:
 
-1. `cp https://github.com/dasl-/pitools/blob/main/readme.md[sample_config.json] config.json`
+1. `cp https://github.com/dasl-/pitools/blob/main/sample_config.json[sample_config.json] config.json`
 1. Open `config.json` and write the values for `electricity_credentials.email`, `electricity_credentials.password`, and `electricity_credentials.totp_secret`.
 1. `/home/pi/development/pitools/sensors/install_electricity_usage_measurer`
 
