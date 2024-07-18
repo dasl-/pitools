@@ -117,7 +117,7 @@ Wants=network-online.target
 [Service]
 Environment=HOME=/root
 # Writing tsdb to USB external SSD improves performance vs SD card.
-ExecStart=$INSTALL_DIR/prometheus-$PROMETHEUS_VERSION/prometheus --config.file=$INSTALL_DIR/prometheus.yml --storage.tsdb.path=/ssd/prometheus-data
+ExecStart=$INSTALL_DIR/prometheus-$PROMETHEUS_VERSION/prometheus --config.file=$INSTALL_DIR/prometheus.yml --storage.tsdb.path=/ssd/prometheus-data --storage.tsdb.retention.time=5y
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog
