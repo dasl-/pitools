@@ -124,9 +124,10 @@ async def internal_get_realtime_usage_data():
 def format_realtime_usage(realtime_usage):
     readings = list(filter(lambda read: read['value'] is not None, realtime_usage))
 
-    # Readings are taken every 15m. Get the last 4 hours of readings, in case con ed's website
-    # had an extended outage and we have to  catch up.
-    latest_readings = readings[-16:]
+    # Readings are taken every 15m. Get the last 24 hours of readings, in case con ed's website
+    # had an extended outage and we have to  catch up. It appears that the API only provides the last
+    # 24 hours of readings anyway.
+    latest_readings = readings[-96:]
     formatted_readings = []
 
     for read in latest_readings:
