@@ -37,13 +37,16 @@ See https://github.com/dasl-/pitools/blob/main/sensors/measure_city_data[`measur
 See my https://dasl.cc/2024/07/07/setting-custom-timestamps-for-prometheus-metrics/[blog post] on timestamped Prometheus metrics for more details.
 
 ## Grafana configuration
-. The username and password is admin / admin by default on first login. Change password to same as WiFi password. : http://study.local:3000
+### If starting with no pre-existing `grafana.db` file
+. The username and password is admin / admin by default on first login. Change password to same as WiFi password. : http://study.local:3000 
 . Add prometheus datasource http://study.local:3000/connections/datasources :
 .. HTTP > Prometheus server URL: `http://localhost:9090`
 .. Interval behaviour > Scrape interval: `10s`
 .. Performance > Prometheus type: `Prometheus`
 . Add https://grafana.com/grafana/dashboards/1860-node-exporter-full/["Node Exporter Full"] dashboard http://study.local:3000/dashboard/import :
 .. Import via grafana.com: `1860` (this is the dashboard ID)
+
+### Regardless of whether we have a pre-existing `grafana.db` file
 . Setup email alerting smtp server
 .. Edit `/etc/grafana/grafana.ini`
 .. Add the https://gist.github.com/dasl-/4cfd313b284ccb25f7e87814a87a9584[smtp config]
