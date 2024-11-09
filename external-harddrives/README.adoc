@@ -6,9 +6,12 @@
 ## Installing them
 See Jeff Geerling's https://www.pidramble.com/wiki/benchmarks/external-usb-drives#format-a-usb-connected-drive-on-the-raspberry-pi-in-raspbian[guide]
 
+### Format the drive
 . `sudo fdisk -l`
 . `sudo fdisk /dev/sda`
 . `sudo mkfs -t ext4 /dev/sda1*`
+
+### Mount the drive
 . `sudo mkdir /ssd`
 . `sudo mount /dev/sda1* /ssd`
 . edit `/etc/fstab`
