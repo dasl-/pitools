@@ -171,7 +171,7 @@ async def get_response(url, timeout = 10, as_json = True):
 
 # Realtime electricity usage is delayed ~1 hour. The delayed data has a timestamp associated with it.
 # Let's pass the timestamp associated with the delayed data point to prometheus
-# so that prometheus may associats the data point with the proper time.
+# so that prometheus may associates the data point with the proper time.
 #
 # https://prometheus.github.io/client_python/collector/custom/
 # https://github.com/dasl-/pitools/blob/main/observability/README.adoc#timestamped_exporter

@@ -29,9 +29,17 @@ def setup_prometheus():
 
 def get_data():
     # NYC realtime air quality:
-    # https://a816-dohbesp.nyc.gov/IndicatorPublic/beta/key-topics/airquality/realtime/
+    # https://a816-dohbesp.nyc.gov/IndicatorPublic/key-topics/airquality/realtime/
     # We show the average readings from 11 rooftop monitors from the NY State Department of Environmental Conservation (DEC),
     # which collects data for the Federal Clean Air Act.
+    #
+    # If this breaks, consider downloading the data from this alternate URL which is by year/month:
+    # https://a816-dohbesp.nyc.gov/IndicatorPublic/data-features/realtime-air-quality/
+    #
+    # Or consider using EPA data:
+    # https://gispub.epa.gov/airnow/?contours=none&monitors=pm25&xmin=-8267811.164466043&xmax=-8203604.060706581&ymin=4956162.7602978945&ymax=4973781.495317604
+    #
+    # For example: https://an_gov_data.s3.amazonaws.com/Sites/360470118.json
     url = 'https://azdohv2staticweb.blob.core.windows.net/$web/nyccas_realtime_DEC.csv'
     response = requests.get(url, timeout=5)
     if response.status_code != 200:

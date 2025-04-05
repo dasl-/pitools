@@ -3,6 +3,7 @@
 import http.server
 import traceback
 import os
+import time
 
 class ServerRequestHandler(http.server.BaseHTTPRequestHandler):
 
@@ -17,14 +18,30 @@ class ServerRequestHandler(http.server.BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
+    # Serve metrics according to the prometheus text format:
+    # https://prometheus.io/docs/instrumenting/exposition_formats/#comments-help-text-and-type-information
     def do_GET(self):
         content = ''
         prom_dir = '/home/pi/observability/timestamped_textfile_collector_data'
+
+        # We need to filter out any samples with timestamps older than the `out_of_order_time_window`
+        # with which we configured prometheus. This is because if we have any samples with a
+        # timestamp older than this value, prometheus will silently fail to ingest all metrics in
+        # the file, even if some were not older than this value.
+        time_23h_ago_ms = (time.time() - (60 * 60 * 23)) * 1000
         try:
             for file in os.listdir(prom_dir):
-                if file.endswith(".prom"):
-                    path = os.path.join(prom_dir, file)
-                    content += open(path, 'r').read()
+                if not file.endswith(".prom"):
+                    continue
+
+                path = os.path.join(prom_dir, file)
+                with open(path, 'r') as lines:
+                    for line in lines:
+                        if not line.startswith('#'):
+                            sample_timestamp = int(line.split()[-1])
+                            if sample_timestamp < time_23h_ago_ms:
+                                line = f"# this line was omitted because its timestamp is too old: {line}"
+                        content += line
 
             self.send_response(200)
         except Exception:
