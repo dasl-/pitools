@@ -39,4 +39,4 @@ https://gist.github.com/dasl-/5dc1eb846a65f75550e45e3a5538f094[Here are the logs
 dsh -r ssh -c -M -m pi@piwall.local,pi@piwall1.local,pi@piwall2.local,pi@piwall3.local,pi@piwall4.local,pi@piwall5.local,pi@piwall6.local,pi@piwall7.local,pi@piwall8.local,pi@piwall9.local,pi@piwall10.local "sudo shutdown -r now" 2>/dev/null
 ....
 
-I can confirm the issue and the fix by restarting the broadcaster process to trigger new screensaver runs.
+I can confirm the issue and the fix by restarting the broadcaster process to trigger new screensaver runs. http://study.local:3000/d/rYdddlPWk/node-exporter-full?orgId=1&from=now-1h&to=now&timezone=browser&var-DS_PROMETHEUS=default&var-job=node&var-node=piwall10&var-diskdevices=%5Ba-z%5D%2B%7Cnvme%5B0-9%5D%2Bn%5B0-9%5D%2B%7Cmmcblk%5B0-9%5D%2B&viewPanel=panel-74[Network traffic graphs] are useful for debugging. We rate limit piwall broadcasts to 5 MB/s in theory. In practice, we see them transmit at 3-4 MB/sec. I believe the network switch has a capacity of 10 MB/sec -- we speedtest-cli top out here.
