@@ -27,3 +27,14 @@ This was strange: I had not known the piwall software to cause issues with shair
 I'm not sure exactly what the timeline was, but perhaps 1 to 3 weeks after I first noticed these drop outs, I had a https://github.com/dasl-/piwall2/blob/main/docs/issues_weve_seen_before.adoc#recurrence-on-2023-06-28[networking issue related to the piwall]. *After solving that issue (by restarting a single bad piwall raspberry pi), I could no longer reproduce these shairport-sync audio drop outs*. I tried to reproduce them by restarting the broadcaster process, which means a new screensaver will get sent to all receivers.
 
 Since I have been unable to reproduce these drop outs since fixing the piwall networking issue, I believe the piwall networking issue somehow caused the audio drop outs. Perhaps the audio drop outs were a leading indicator to more complete failure of the network.
+
+#### 2025-09-06
+I had a recurrence of this issue. I restarted all piwall raspberry pis (all 11 of them) and rebooted the router. Judging by the fix from the last occurence, it would have been sufficient to restart a single bad piwall raspberry pi, but perhaps it would be hard to determine which one is the bad one. Next time this happens, I probably don't need to restart my router. 
+
+https://gist.github.com/dasl-/5dc1eb846a65f75550e45e3a5538f094[Here are the logs]. The client was my iPhone playing from the Music app from my local file library. Lots of messages like this: `Dropping out of date packet 47609 with timestamp 3806330070. Lead time is -0.448617 seconds.`
+
+Next time this happens, run this command to restart all piwall raspberry pis, which should fix it:
+
+....
+dsh -r ssh -c -M -m pi@piwall.local,pi@piwall1.local,pi@piwall2.local,pi@piwall3.local,pi@piwall4.local,pi@piwall5.local,pi@piwall6.local,pi@piwall7.local,pi@piwall8.local,pi@piwall9.local,pi@piwall10.local "sudo shutdown -r now" 2>/dev/null
+....
