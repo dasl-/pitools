@@ -40,3 +40,6 @@ dsh -r ssh -c -M -m pi@piwall.local,pi@piwall1.local,pi@piwall2.local,pi@piwall3
 ....
 
 I can confirm the issue and the fix by restarting the broadcaster process to trigger new screensaver runs. http://study.local:3000/d/rYdddlPWk/node-exporter-full?orgId=1&from=now-1h&to=now&timezone=browser&var-DS_PROMETHEUS=default&var-job=node&var-node=piwall10&var-diskdevices=%5Ba-z%5D%2B%7Cnvme%5B0-9%5D%2Bn%5B0-9%5D%2B%7Cmmcblk%5B0-9%5D%2B&viewPanel=panel-74[Network traffic graphs] are useful for debugging. We rate limit piwall broadcasts to 5 MB/s in theory. In practice, we see them transmit at 3-4 MB/sec. I believe the network switch has a capacity of 10 MB/sec -- we speedtest-cli top out here.
+
+#### 2025-10-18
+Another recurrence. I tried adjusting the speed at which we transmit the piwall video from 5 MB/s all the way down to 0.5 MB/s. I could still reproduce the issue even at that rate. I could only seem to avoid the issue at 0.25 MB/s. This was surprising. I restarted the piwall10 host and the issue went away, even at 5 MB/s video transmission. This suggests a problem on the piwall10 host itself as time goes on. *Next time I could try just restarting shairport-sync or piwall_receiver services* to rule out that those processes get into a bad state over time.
