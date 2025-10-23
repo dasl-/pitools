@@ -10,6 +10,7 @@ GIT_USER_NAME=''
 HOSTNAME="raspberrypi"
 ENABLE_SPI=false
 SHOULD_DELETE_SELF=false
+OS_VERSION=$(grep '^VERSION_ID=' /etc/os-release | sed 's/[^0-9]*//g')
 
 usage(){
     echo "Usage: $(basename "${0}") -p <PASSWORD> [-h <HOSTNAME>] [-i <PATH_TO_SSH_KEY>] [-s] [-r]"
@@ -111,7 +112,14 @@ setupSshKey(){
 updateAndInstallPackages(){
     info "\\nUpdating and installing packages..."
     sudo apt update
-    sudo apt -y install git mlocate vim zsh zsh-syntax-highlighting python3-pip
+
+    if (( OS_VERSION > 12 )); then
+        locate_package='plocate'
+    else
+        locate_package='mlocate'
+    fi
+
+    sudo apt -y install git $locate_package vim zsh zsh-syntax-highlighting python3-pip
     sudo apt -y full-upgrade
 
     sudo PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --upgrade speedtest-cli
