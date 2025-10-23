@@ -32,6 +32,8 @@ def parseArgs():
     parser.add_argument('--wifi-country-code', dest='wifi_country_code', action='store', default='US',
         help='Your ISO-3166-1 two-letter country code. See: ' +
         'https://www.iso.org/obp/ui/#search')
+    parser.add_argument('--wpa-supplicant', dest='wpa_supplicant', action='store_true',
+        help='Whether to use the legacy wpa_supplicant method of setting up wifi (Debian 11 and older)')
 
     if os.getuid() != 0:
         print("This script must be run as sudo.\n", file = sys.stderr)
@@ -99,9 +101,12 @@ def setupUserAccount():
 def setupWifi():
     print("Setting up wifi...")
     my_dir = pathlib.Path(__file__).parent.absolute()
-    command(f'sudo {my_dir}/wifi_config --wifi-network-name {args.wifi_network_name} ' +
+    cmd = (f'sudo {my_dir}/wifi_config --wifi-network-name {args.wifi_network_name} ' +
         f'--wifi-password {args.wifi_password} --wifi-country-code {args.wifi_country_code} ' +
         f'--device-path {args.device_path}')
+    if args.wpa_supplicant:
+        cmd += ' --wpa-supplicant'
+    command(cmd)
 
 def setupSsh():
     print("Enabling ssh...")
@@ -120,8 +125,11 @@ def validate():
         print("ERROR: failed to validate ssh setup", file = sys.stderr)
         sys.exit(1)
 
+    wifi_file = f"{args.device_path}/firstrun.sh"
+    if args.wpa_supplicant:
+        wifi_file = f"{args.device_path}/wpa_supplicant.conf"
     try:
-        command(f'sudo ls -l {args.device_path}/wpa_supplicant.conf')
+        command(f'sudo ls -l {wifi_file}')
     except Exception:
         print("ERROR: failed to validate wifi setup", file = sys.stderr)
         sys.exit(1)

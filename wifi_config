@@ -24,12 +24,20 @@ def parseArgs():
         help='Mounted volume path after SD card has been imaged. Only applicable / useful if you are running ' +
         'this script on a laptop / desktop to image the SD card for the first time. If running this script on a ' +
         'raspberry pi, do not use this argument.')
+    parser.add_argument('--wpa-supplicant', dest='wpa_supplicant', action='store_true',
+        help='Whether to use the legacy wpa_supplicant method of setting up wifi (Debian 11 and older)')
 
     args = parser.parse_args()
     args.device_path = args.device_path.rstrip('/')
     return args
 
 def setupWifi():
+    if args.wpa_supplicant:
+        setupWpaSupplicantWifi()
+    else:
+        setupNewWifi()
+
+def setupWpaSupplicantWifi():
     f = None
     try:
         f = open(f"{args.device_path}/wpa_supplicant.conf", "w")
@@ -47,6 +55,45 @@ def setupWifi():
     }}""")
     f.close()
 
+def setupNewWifi():
+    f = None
+    try:
+        f = open(f"{args.device_path}/firstrun.sh", "w")
+    except PermissionError:
+        print("This script must be run as sudo", file = sys.stderr)
+        sys.exit(1)
+
+    f.write(f"""#!/usr/bin/env bash
+
+set -euo pipefail -o errtrace
+
+cat >/etc/NetworkManager/system-connections/wifi.nmconnection <<EOF
+[connection]
+id=wifi
+uuid=95b17351-297c-4d9c-90f9-669d3ab81464
+type=wifi
+
+[wifi]
+mode=infrastructure
+ssid={args.wifi_network_name}
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk={args.wifi_password}
+
+[ipv4]
+method=auto
+
+[ipv6]
+addr-gen-mode=default
+method=auto
+
+[proxy]
+EOF
+chmod 600 /etc/NetworkManager/system-connections/wifi.nmconnection
+""")
+    f.close()
+    os.chmod(f"{args.device_path}/firstrun.sh", 0o777)
 
 if os.getuid() != 0:
     print("This script must be run as sudo", file = sys.stderr)
