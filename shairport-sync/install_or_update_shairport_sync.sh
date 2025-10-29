@@ -14,11 +14,13 @@ RESTART_REQUIRED_FILE='/tmp/install_shairport_sync_restart.file'
 
 SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
 SHAIRPORT_SYNC_CLONE_URL=https://github.com/mikebrady/shairport-sync.git
-SPS_BRANCH='development'
+# SPS_BRANCH='development'
+SPS_BRANCH='d166477eb9ca5887ef0a002bd67e855267c0b86a' # pin this known good build
 
 NQPTP_REPO_PATH="$BASE_DIR""/nqptp"
 NQPTP_CLONE_URL=https://github.com/mikebrady/nqptp.git
-NQPTP_BRANCH='development'
+# NQPTP_BRANCH='development'
+NQPTP_BRANCH='0742bba8ed37159b6a79d7d1321a3b83de6e0bab' # pin this known good build
 
 SKIP_CLONE_AND_PULL=false
 
@@ -164,6 +166,8 @@ cloneOrPullRepo(){
         git clone "$clone_url" "$repo_path"
     else
         info "Pulling repo in $repo_path ..."
+        local default_branch=$(git -C "$repo_path" symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+        git -C "$repo_path" checkout "$default_branch"
         git -C "$repo_path" pull
     fi
 }
@@ -173,8 +177,6 @@ buildNqptp(){
     pushd "$NQPTP_REPO_PATH"
     git checkout "$NQPTP_BRANCH"
 
-    # pull again because if we were on another branch before, we need to pull after checking out the correct branch
-    cloneOrPullRepo "$NQPTP_REPO_PATH" "$NQPTP_CLONE_URL"
     autoreconf -fi
     ./configure --with-systemd-startup
     make clean # more praying to the make gods? see the same `make clean` in buildShairportSync
@@ -194,9 +196,6 @@ buildShairportSync(){
     info "Building shairport-sync... This may take a while..."
     pushd "$SHAIRPORT_SYNC_REPO_PATH"
     git checkout "$SPS_BRANCH"
-
-    # pull again because if we were on another branch before, we need to pull after checking out the correct branch
-    cloneOrPullRepo "$SHAIRPORT_SYNC_REPO_PATH" "$SHAIRPORT_SYNC_CLONE_URL"
 
     autoreconf -fi
 
