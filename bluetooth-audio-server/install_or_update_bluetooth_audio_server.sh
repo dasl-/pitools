@@ -76,6 +76,10 @@ installBtSpeaker(){
         printf "\nbtspeaker ALL=(ALL) NOPASSWD: ALL\n" | sudo tee --append /etc/sudoers >/dev/null
     fi
 
+    # Ensure all parent directories of the bt_speaker.py script are executable by the btspeaker
+    # user, otherwise it will fail with permissions errors.
+    sudo chmod o+rx $HOME
+
     cloneOrPullRepo "$BT_SPEAKER_REPO_PATH" "$BT_SPEAKER_CLONE_URL"
 
     sudo mkdir -p /etc/bt_speaker/hooks
