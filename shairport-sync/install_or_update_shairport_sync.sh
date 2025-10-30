@@ -9,7 +9,11 @@ set -euo pipefail -o errtrace
 
 BASE_DIR=$HOME
 NAME=''
+OS_VERSION=$(grep '^VERSION_ID=' /etc/os-release | sed 's/[^0-9]*//g')
 CONFIG=/boot/config.txt
+if (( OS_VERSION > 12 )); then
+    CONFIG='/boot/firmware/config.txt'
+fi
 RESTART_REQUIRED_FILE='/tmp/install_shairport_sync_restart.file'
 
 SHAIRPORT_SYNC_REPO_PATH="$BASE_DIR""/shairport-sync"
@@ -93,10 +97,15 @@ parseOpts(){
 updatePackages(){
     info "Updating and installing packages..."
     sudo apt update
+
+    local systemd_package=''
+    if (( OS_VERSION > 12 )); then
+        systemd_package='systemd-dev'
+    fi
     sudo apt -y install --no-install-recommends build-essential git xmltoman autoconf automake libtool \
         libpopt-dev libconfig-dev libasound2-dev avahi-daemon libavahi-client-dev libssl-dev libsoxr-dev \
         libplist-dev libsodium-dev libavutil-dev libavcodec-dev libavformat-dev uuid-dev libgcrypt-dev xxd \
-        libglib2.0-dev # libglib2.0-dev needed when building SPS with dbus support
+        $systemd_package libglib2.0-dev # libglib2.0-dev needed when building SPS with dbus support
     sudo apt -y full-upgrade
 }
 
@@ -110,6 +119,18 @@ disableWifiPowerManagement(){
         info 'wifi is disabled; skipping disabling of wifi power management...'
         return
     fi
+
+    if [ ! -f /etc/rc.local ]; then
+        # rc.local file no longer exists in newer raspbian, but we can still create it and it will be used:
+        # https://forums.raspberrypi.com/viewtopic.php?p=2283266#p2283266
+cat <<-EOF | sudo tee /etc/rc.local >/dev/null
+#!/bin/sh -e
+logger "rc.local here"
+exit 0
+EOF
+        sudo chmod 755 /etc/rc.local
+    fi
+
     if ! grep -q '^iwconfig wlan0 power off' /etc/rc.local ; then
         info "Disabling wifi power management..."
 
