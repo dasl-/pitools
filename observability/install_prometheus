@@ -97,6 +97,8 @@ scrape_configs:
         regex: "([^:]+):\\\\d+"
         target_label: instance
 
+    metric_relabel_configs:
+
       # Remove metrics that use a lot of storage space but don't provide much value
       - source_labels: [ __name__ ]
         regex: '^(node_systemd|node_nfs|node_scrape|go_).*'
@@ -123,7 +125,7 @@ Wants=network-online.target
 [Service]
 Environment=HOME=/root
 # Writing tsdb to USB external SSD improves performance vs SD card.
-ExecStart=$INSTALL_DIR/prometheus-$PROMETHEUS_VERSION/prometheus --config.file=$INSTALL_DIR/prometheus.yml --storage.tsdb.path=/ssd/prometheus-data --storage.tsdb.retention.time=5y
+ExecStart=$INSTALL_DIR/prometheus-$PROMETHEUS_VERSION/prometheus --config.file=$INSTALL_DIR/prometheus.yml --storage.tsdb.path=/ssd/prometheus-data --storage.tsdb.retention.time=5y --web.enable-admin-api
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog
