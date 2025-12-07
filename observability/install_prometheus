@@ -90,11 +90,17 @@ scrape_configs:
             "piwall10:9100",
         ]
 
-    # Remove the port number suffix from the instance labels
     relabel_configs:
+
+      # Remove the port number suffix from the instance labels
       - source_labels: [__address__]
         regex: "([^:]+):\\\\d+"
         target_label: instance
+
+      # Remove metrics that use a lot of storage space but don't provide much value
+      - source_labels: [ __name__ ]
+        regex: '^(node_systemd|node_nfs|node_scrape|go_).*'
+        action: drop
 
 storage:
   tsdb:
