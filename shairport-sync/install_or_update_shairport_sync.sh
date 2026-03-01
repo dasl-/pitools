@@ -266,6 +266,18 @@ maybeConfigureShairportSync(){
             # piwall hosts are on an older version of raspbian OS where the mixer name is still Headphone
             mixer_control_name='Headphone'
         fi
+
+        local metadata_string=''
+        if [[ $(hostname) == "pifi" ]]; then
+            # pifi karaoke screensaver needs to read currently playing track information
+            metadata_string='metadata =
+{
+  enabled = "yes";
+  include_cover_art = "yes";
+  pipe_name = "/tmp/shairport-sync-metadata";
+};'
+        fi
+
         cat <<-EOF | sudo tee $config_file_path >/dev/null
 general =
 {
@@ -291,6 +303,8 @@ diagnostics =
   log_verbosity = 2; // "0" means no debug verbosity, "3" is most verbose.
   statistics = "yes";
 };
+
+$metadata_string
 EOF
     else
         info "Not specifying default configuration because a user modified configuration file already exists."
