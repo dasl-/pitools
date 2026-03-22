@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+
+import subprocess
+import pprint
+
+# Prints information about whether raspberry pi has been CPU throttled for various reasons
+def main():
+    throttling_values_map = get_data()
+    pprint.pp(throttling_values_map)
+
+def get_data():
+    throttled_output = subprocess.check_output(('vcgencmd', 'get_throttled')).decode("utf-8")
+    throttling_values_map = interpret_throttled_output(throttled_output)
+    return throttling_values_map
+
+# See: https://gist.github.com/dasl-/f875535b2b71bcab0f1215a1b39b52cf
+def interpret_throttled_output(throttled_output):
+    throttled_output = throttled_output.strip()
+    if throttled_output[-3:] == '0x0':
+        throttled_output = '0x00000'
+    throttled_output = throttled_output[-5:]
+
+    throttling_values_map = {
+        'under_voltage_detected': 0,
+        'arm_frequency_capped': 0,
+        'currently_throttled': 0,
+        'soft_temperature_limit_active': 0,
+        'under_voltage_has_occurred': 0,
+        'arm_frequency_capping_has_occurred': 0,
+        'throttling_has_occurred': 0,
+        'soft_temperature_limit_has_occurred': 0,
+    }
+    index_offset = 16
+    for i in range(len(throttled_output)):
+        char = throttled_output[i]
+
+        # Ex:
+        # '1'        -> '0001'
+        # 'd' or 'D' -> '1101'
+        binary = bin(int(char, 16))[2:].zfill(4)
+        for j in range(len(binary)):
+            if binary[j] == '1':
+                bit_index = index_offset + len(binary) - j - 1
+                if bit_index == 0:
+                    throttling_values_map['under_voltage_detected'] = 1
+                elif bit_index == 1:
+                    throttling_values_map['arm_frequency_capped'] = 1
+                elif bit_index == 2:
+                    throttling_values_map['currently_throttled'] = 1
+                elif bit_index == 3:
+                    throttling_values_map['soft_temperature_limit_active'] = 1
+                elif bit_index == 16:
+                    throttling_values_map['under_voltage_has_occurred'] = 1
+                elif bit_index == 17:
+                    throttling_values_map['arm_frequency_capping_has_occurred'] = 1
+                elif bit_index == 18:
+                    throttling_values_map['throttling_has_occurred'] = 1
+                elif bit_index == 19:
+                    throttling_values_map['soft_temperature_limit_has_occurred'] = 1
+
+        index_offset -= 4
+
+    return throttling_values_map
+
+
+main()
