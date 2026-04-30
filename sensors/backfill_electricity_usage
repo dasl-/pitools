@@ -116,8 +116,10 @@ or otherwise need to be removed:
     ssh pi@study
     sudo systemctl stop prometheus
     # If you took a snapshot in Step 3 (option A):
+    # The snapshot lives inside the data dir — move it OUT before the rm.
+    sudo mv -T /ssd/prometheus-data/snapshots/<snapshot-id> /ssd/prometheus-data.snapshot
     sudo rm -rf /ssd/prometheus-data
-    sudo cp -a /ssd/prometheus-data/snapshots/<snapshot-id> /ssd/prometheus-data
+    sudo mv -T /ssd/prometheus-data.snapshot /ssd/prometheus-data
     # OR if you took a copy in Step 3 (option B):
     sudo rm -rf /ssd/prometheus-data
     sudo mv /ssd/prometheus-data.bak.YYYY-MM-DD /ssd/prometheus-data
@@ -317,8 +319,8 @@ def parse_args():
                    help='seconds to sleep between GraphQL calls (rate-limit defense)')
     p.add_argument('--label', type=_parse_label, action='append', default=None,
                    help='override a series label, e.g. --label instance=study. May be repeated. '
-                        'Defaults: instance=study,job=node — verify against your existing series '
-                        'with `curl http://study:9090/api/v1/series?match[]=electricity_kwh`')
+                        'Merges into the defaults (instance=study,job=node) — verify against your '
+                        'existing series with `curl http://study:9090/api/v1/series?match[]=electricity_kwh`')
     return p.parse_args()
 
 
@@ -329,7 +331,7 @@ def main():
 
     series_labels = dict(SERIES_LABELS)
     if args.label:
-        series_labels = dict(args.label)
+        series_labels.update(dict(args.label))
 
     cfg = pyjson5.decode(open(args.config).read())['electricity_credentials']
     session = requests.Session()
@@ -362,6 +364,7 @@ def main():
     print(f'  saUuid={sa_uuid} spUuid={sp_uuid} registerId={register_id}', file=sys.stderr)
 
     label_str = ','.join(f'{k}="{v}"' for k, v in sorted(series_labels.items()))
+    print(f'  series labels: {{{label_str}}}', file=sys.stderr)
     samples_written = 0
     day_count = 0
     days_with_data = 0
