@@ -1,0 +1,416 @@
+#!/usr/bin/env python3
+"""
+Backfill historical 15-minute electricity usage data into Prometheus.
+
+Why this exists: the live scrape path ingests electricity_kwh through the
+timestamped_exporter, gated by `out_of_order_time_window: 1d`. Anything older
+than 24 hours is dropped at scrape time, so a multi-month gap (e.g., the
+ConEd EDAP outage starting late Dec 2025) cannot be repaired through the
+normal scrape pipeline. `promtool tsdb create-blocks-from openmetrics` is
+Prometheus's canonical tool for inserting historical data: it materializes
+TSDB blocks directly on disk that the server picks up at startup.
+
+============================================================================
+RUNBOOK
+============================================================================
+
+Run all steps from a host that can reach `coned.com` (laptop or any pi). The
+data fetch is read-only against ConEd. The TSDB surgery happens on `study`.
+
+----------------------------------------------------------------------------
+Step 1. Pre-flight: confirm what labels the existing series carries.
+----------------------------------------------------------------------------
+The backfilled samples must use the same {label=value, ...} as the live
+samples or you'll create a parallel series and your dashboards won't show
+continuous data. Verify with:
+
+    curl -s 'http://study:9090/api/v1/series?match%5B%5D=electricity_kwh' \
+      | python3 -m json.tool
+
+Default in this script is {instance="study", job="node"}. If yours differs,
+override with --label "key=value" --label "key=value" ...
+
+----------------------------------------------------------------------------
+Step 2. Fetch the historical reads (this script).
+----------------------------------------------------------------------------
+This makes one GraphQL call per 24h window. ~125 calls for a 4-month gap,
+spaced 1.5s apart by default. Be gentle: ConEd's WAF (Akamai) will 503 if
+you hammer; the script already retries with exponential backoff.
+
+    ./sensors/backfill_electricity_usage \\
+        --start 2025-12-20 \\
+        --end   2026-04-29 \\
+        --output /tmp/electricity_backfill.openmetrics
+
+It prints a per-day progress line (`YYYY-MM-DD: N valid / M reads`) and a
+summary (`Wrote N samples covering D/D days`). It also re-prints the next
+steps, parameterized for the file you just generated.
+
+----------------------------------------------------------------------------
+Step 3. Back up the TSDB before doing anything destructive.
+----------------------------------------------------------------------------
+Two options. Snapshots (option A) are atomic and use hardlinks, so they're
+fast and cheap; recommended unless you specifically want a portable copy.
+
+Option A. Use Prometheus's snapshot admin API (recommended):
+
+    # The systemd unit launches prometheus with --web.enable-admin-api,
+    # so this endpoint is available.
+    ssh pi@study 'curl -sX POST http://localhost:9090/api/v1/admin/tsdb/snapshot'
+    # -> {"status":"success","data":{"name":"<snapshot-id>"}}
+    # Snapshot lives at /ssd/prometheus-data/snapshots/<snapshot-id>/
+
+Option B. Stop prometheus and rsync the data dir off-disk:
+
+    ssh pi@study
+    sudo systemctl stop prometheus
+    sudo cp -a /ssd/prometheus-data /ssd/prometheus-data.bak.YYYY-MM-DD
+    sudo systemctl start prometheus
+
+----------------------------------------------------------------------------
+Step 4. Materialize TSDB blocks from the OpenMetrics file.
+----------------------------------------------------------------------------
+Build the blocks into a *staging* directory (NOT /ssd/prometheus-data) so
+you can inspect them before moving:
+
+    scp /tmp/electricity_backfill.openmetrics pi@study:/tmp/
+    ssh pi@study
+    PROMTOOL=/home/pi/observability/prometheus-2.45.0.linux-arm64/promtool
+    rm -rf /tmp/electricity_blocks
+    $PROMTOOL tsdb create-blocks-from openmetrics \\
+        /tmp/electricity_backfill.openmetrics \\
+        /tmp/electricity_blocks
+
+Inspect:
+
+    ls -la /tmp/electricity_blocks/                          # one or more 26-char-id directories
+    $PROMTOOL tsdb analyze /tmp/electricity_blocks/<id>      # confirm series and sample counts
+
+----------------------------------------------------------------------------
+Step 5. Stop Prometheus, move the blocks in, restart.
+----------------------------------------------------------------------------
+Prometheus rescans the data dir at startup. It also rescans periodically
+while running, but stopping is safer for a manual block move.
+
+    ssh pi@study
+    sudo systemctl stop prometheus
+    sudo mv /tmp/electricity_blocks/* /ssd/prometheus-data/
+    sudo chown -R prometheus:prometheus /ssd/prometheus-data/<new-block-id>
+    sudo systemctl start prometheus
+    sudo systemctl status prometheus  # confirm it's healthy
+
+----------------------------------------------------------------------------
+Step 6. Verify.
+----------------------------------------------------------------------------
+- Open the prometheus UI: http://study:9090/graph
+- Query: electricity_kwh
+- Set the time range to span the gap. Should now be filled.
+- In Grafana, your existing dashboards should show continuous data.
+
+----------------------------------------------------------------------------
+Step 7. (Optional) Rollback if something looks wrong.
+----------------------------------------------------------------------------
+If the imported blocks duplicate existing series, look obviously corrupt,
+or otherwise need to be removed:
+
+    ssh pi@study
+    sudo systemctl stop prometheus
+    # If you took a snapshot in Step 3 (option A):
+    sudo rm -rf /ssd/prometheus-data
+    sudo cp -a /ssd/prometheus-data/snapshots/<snapshot-id> /ssd/prometheus-data
+    # OR if you took a copy in Step 3 (option B):
+    sudo rm -rf /ssd/prometheus-data
+    sudo mv /ssd/prometheus-data.bak.YYYY-MM-DD /ssd/prometheus-data
+    sudo systemctl start prometheus
+
+----------------------------------------------------------------------------
+Step 8. (Once verified, free disk space.)
+----------------------------------------------------------------------------
+Once you're confident, you can delete the snapshot or backup:
+
+    ssh pi@study 'sudo rm -rf /ssd/prometheus-data/snapshots/<snapshot-id>'
+    # OR
+    ssh pi@study 'sudo rm -rf /ssd/prometheus-data.bak.YYYY-MM-DD'
+"""
+
+import argparse
+import datetime
+import json
+import os
+import sys
+import time
+import requests
+import pyjson5
+import pyotp
+
+
+# Default mirrors what `measure_electricity_usage` uses: the repo's config.json,
+# resolved relative to this script. Override with --config if needed.
+DEFAULT_CONFIG_PATH = os.path.abspath(os.path.dirname(__file__) + '/..') + '/config.json'
+RETURN_URL = '/en/accounts-billing/my-account/energy-use'
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+GRAPHQL_URL = 'https://cned.opower.com/ei/edge/apis/dsm-graphql-v1/cws/graphql'
+
+# Match what `measure_electricity_usage` writes today, so the backfilled samples
+# land on the same series as the live data.
+METRIC_NAME = 'electricity_kwh'
+METRIC_HELP = 'Electricity usage. Units: KWh.'
+# Adjust if Prometheus shows different labels on the existing series. Verify with:
+#   curl -s 'http://study:9090/api/v1/series?match[]=electricity_kwh' | jq
+SERIES_LABELS = {'job': 'node', 'instance': 'study'}
+
+WBAS_BILLING_ACCOUNTS_QUERY = '''
+query WBAS_BillingAccounts($first: Int, $onlyActive: Boolean) {
+  billingAccountsConnection(first: $first) {
+    edges { node {
+      urn
+      serviceAgreementsConnection(first: 10, onlyActive: $onlyActive) {
+        edges { node { uuid serviceType
+          servicePointsConnection { edges { node { uuid serviceType } } }
+        } }
+      }
+    } }
+  }
+}
+'''
+
+WRTAMI_GET_REGISTERS_QUERY = '''
+query WRTAMI_GetRegisters($selectedAccount: ID, $saUuid: String, $spUuid: String) {
+  billingAccountByAuthContext(selectedAccount: $selectedAccount) {
+    serviceAgreementsConnection(onlyActive: true, matching: $saUuid) {
+      edges { node {
+        servicePointsConnection(matching: $spUuid) {
+          edges { node {
+            intervalReads(units: [KWH], serviceQuantityIdentifier: [NET_USAGE], onlyUnverifiedStreams: true) {
+              registerId
+            }
+          } }
+        }
+      } }
+    }
+  }
+}
+'''
+
+WRTAMI_GET_REGISTER_USAGE_QUERY = '''
+query WRTAMI_GetRegisterUsage($selectedAccount: ID, $registerId: ID, $saUuid: String, $spUuid: String, $timeInterval: TimeInterval) {
+  billingAccountByAuthContext(selectedAccount: $selectedAccount) {
+    serviceAgreementsConnection(onlyActive: true, matching: $saUuid) {
+      edges { node {
+        servicePointsConnection(matching: $spUuid) {
+          edges { node {
+            intervalReads(registerId: $registerId, units: [KWH], serviceQuantityIdentifier: [NET_USAGE], timeInterval: $timeInterval, onlyUnverifiedStreams: true) {
+              reads { timeInterval measuredAmount { value } }
+            }
+          } }
+        }
+      } }
+    }
+  }
+}
+'''
+
+
+def login(session, cfg):
+    r = session.post(
+        'https://www.coned.com/sitecore/api/ssc/ConEdWeb-Foundation-Login-Areas-LoginAPI/User/0/Login',
+        json={'LoginEmail': cfg['email'], 'LoginPassword': cfg['password'],
+              'LoginRememberMe': False, 'ReturnUrl': RETURN_URL, 'OpenIdRelayState': ''})
+    login_resp = r.json()
+    if not login_resp.get('login'):
+        raise SystemExit(f'Login failed: {login_resp}')
+    if 'authRedirectUrl' in login_resp:
+        return login_resp['authRedirectUrl']
+    if not login_resp.get('noMfa'):
+        mfa = session.post(
+            'https://www.coned.com/sitecore/api/ssc/ConEdWeb-Foundation-Login-Areas-LoginAPI/User/0/VerifyFactor',
+            json={'MFACode': pyotp.TOTP(cfg['totp_secret']).now(),
+                  'ReturnUrl': RETURN_URL, 'OpenIdRelayState': ''}).json()
+        if not mfa.get('code'):
+            raise SystemExit(f'MFA failed: {mfa}')
+        return mfa['authRedirectUrl']
+    raise SystemExit(f'Login returned unexpected shape: {login_resp}')
+
+
+def post_graphql(session, headers, operation_name, query, variables, max_retries=5):
+    body = {'operationName': operation_name, 'query': query, 'variables': variables}
+    backoff = 5
+    for attempt in range(max_retries):
+        r = session.post(GRAPHQL_URL, json=body, headers=headers, timeout=30)
+        if r.status_code == 503:
+            print(f'  503 (Akamai rate limit) on {operation_name}; sleeping {backoff}s and retrying...',
+                  file=sys.stderr, flush=True)
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 120)
+            continue
+        if r.status_code != 200:
+            raise SystemExit(f'HTTP {r.status_code} on {operation_name}: {r.text[:300]}')
+        result = r.json()
+        if 'errors' in result:
+            raise SystemExit(f'GraphQL errors on {operation_name}: {result["errors"]}')
+        return result['data']
+    raise SystemExit(f'{operation_name} repeatedly hit 503 — giving up')
+
+
+def fetch_metadata(session, headers):
+    accounts = post_graphql(session, headers, 'WBAS_BillingAccounts', WBAS_BILLING_ACCOUNTS_QUERY,
+                            {'first': 25, 'onlyActive': True})
+    edges = accounts['billingAccountsConnection']['edges']
+    if not edges:
+        raise SystemExit('GraphQL returned no billing accounts')
+    node = edges[0]['node']
+    account_urn = node['urn']
+    sa = next(x['node'] for x in node['serviceAgreementsConnection']['edges']
+              if x['node']['serviceType'] == 'ELECTRICITY')
+    sp = next(x['node'] for x in sa['servicePointsConnection']['edges']
+              if x['node']['serviceType'] == 'ELECTRICITY')
+
+    regs = post_graphql(session, headers, 'WRTAMI_GetRegisters', WRTAMI_GET_REGISTERS_QUERY,
+                        {'selectedAccount': account_urn, 'saUuid': sa['uuid'], 'spUuid': sp['uuid']})
+    interval_reads = (regs['billingAccountByAuthContext']
+                          ['serviceAgreementsConnection']['edges'][0]['node']
+                          ['servicePointsConnection']['edges'][0]['node']
+                          ['intervalReads'])
+    if not interval_reads:
+        raise SystemExit('WRTAMI_GetRegisters returned no intervalReads')
+    return account_urn, sa['uuid'], sp['uuid'], interval_reads[0]['registerId']
+
+
+def fetch_day(session, headers, account_urn, sa_uuid, sp_uuid, register_id, day_start_utc):
+    end_utc = day_start_utc + datetime.timedelta(hours=24)
+    time_interval = f'{day_start_utc.isoformat()}/{end_utc.isoformat()}'
+    data = post_graphql(session, headers, 'WRTAMI_GetRegisterUsage', WRTAMI_GET_REGISTER_USAGE_QUERY,
+                        {'selectedAccount': account_urn, 'registerId': register_id,
+                         'saUuid': sa_uuid, 'spUuid': sp_uuid,
+                         'timeInterval': time_interval})
+    reads = (data['billingAccountByAuthContext']
+                 ['serviceAgreementsConnection']['edges'][0]['node']
+                 ['servicePointsConnection']['edges'][0]['node']
+                 ['intervalReads'])
+    return reads[0]['reads'] if reads else []
+
+
+def _parse_label(s):
+    if '=' not in s:
+        raise argparse.ArgumentTypeError(f'expected key=value, got {s!r}')
+    k, v = s.split('=', 1)
+    if not k or not v:
+        raise argparse.ArgumentTypeError(f'empty key or value in {s!r}')
+    return k, v
+
+
+def parse_args():
+    today = datetime.date.today()
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument('--start', type=lambda s: datetime.date.fromisoformat(s),
+                   default=today - datetime.timedelta(days=130),
+                   help='inclusive start date (YYYY-MM-DD), default: today - 130d')
+    p.add_argument('--end', type=lambda s: datetime.date.fromisoformat(s),
+                   default=today,
+                   help='exclusive end date (YYYY-MM-DD), default: today')
+    p.add_argument('--output', default='/tmp/electricity_backfill.openmetrics',
+                   help='OpenMetrics output path')
+    p.add_argument('--config', default=DEFAULT_CONFIG_PATH,
+                   help='path to pitools config.json (default: ../config.json next to this script)')
+    p.add_argument('--sleep', type=float, default=1.5,
+                   help='seconds to sleep between GraphQL calls (rate-limit defense)')
+    p.add_argument('--label', type=_parse_label, action='append', default=None,
+                   help='override a series label, e.g. --label instance=study. May be repeated. '
+                        'Defaults: instance=study,job=node — verify against your existing series '
+                        'with `curl http://study:9090/api/v1/series?match[]=electricity_kwh`')
+    return p.parse_args()
+
+
+def main():
+    args = parse_args()
+    if args.start >= args.end:
+        raise SystemExit(f'--start ({args.start}) must be before --end ({args.end})')
+
+    series_labels = dict(SERIES_LABELS)
+    if args.label:
+        series_labels = dict(args.label)
+
+    cfg = pyjson5.decode(open(args.config).read())['electricity_credentials']
+    session = requests.Session()
+    session.headers.update({'User-Agent': USER_AGENT, 'Referer': 'https://www.coned.com/'})
+
+    redirect_url = login(session, cfg)
+    session.get(redirect_url, allow_redirects=True)
+    token = session.get(
+        'https://www.coned.com/sitecore/api/ssc/ConEd-Cms-Services-Controllers-Opower/OpowerService/0/GetOPowerToken'
+    ).json()
+    if not isinstance(token, str):
+        raise SystemExit(f'GetOPowerToken returned non-string: {token!r}')
+
+    customer = session.get(
+        'https://cned.opower.com/ei/edge/apis/multi-account-v1/cws/cned/customers/current',
+        headers={'User-Agent': USER_AGENT, 'Authorization': f'Bearer {token}'}
+    ).json()
+    customer_uuid = customer['uuid']
+
+    api_headers = {
+        'User-Agent': USER_AGENT,
+        'Authorization': f'Bearer {token}',
+        'Opower-Selected-Entities': json.dumps([f'urn:opower:customer:uuid:{customer_uuid}']),
+        'Content-Type': 'application/json',
+    }
+
+    print(f'Logged in. Fetching service-point metadata...', file=sys.stderr)
+    account_urn, sa_uuid, sp_uuid, register_id = fetch_metadata(session, api_headers)
+    print(f'  account_urn={account_urn}', file=sys.stderr)
+    print(f'  saUuid={sa_uuid} spUuid={sp_uuid} registerId={register_id}', file=sys.stderr)
+
+    label_str = ','.join(f'{k}="{v}"' for k, v in sorted(series_labels.items()))
+    samples_written = 0
+    day_count = 0
+    days_with_data = 0
+
+    with open(args.output, 'w') as out:
+        out.write(f'# HELP {METRIC_NAME} {METRIC_HELP}\n')
+        out.write(f'# TYPE {METRIC_NAME} gauge\n')
+
+        cursor = args.start
+        while cursor < args.end:
+            day_count += 1
+            day_start_utc = datetime.datetime.combine(
+                cursor, datetime.time(0, 0), tzinfo=datetime.timezone.utc)
+            try:
+                reads = fetch_day(session, api_headers, account_urn, sa_uuid, sp_uuid, register_id, day_start_utc)
+            except SystemExit:
+                raise
+            except Exception as e:
+                print(f'  WARN {cursor}: {e}', file=sys.stderr)
+                reads = []
+
+            valid = [r for r in reads if r.get('measuredAmount') is not None]
+            if valid:
+                days_with_data += 1
+                for read in valid:
+                    start_iso = read['timeInterval'].split('/', 1)[0]
+                    dt = datetime.datetime.fromisoformat(start_iso.replace('Z', '+00:00'))
+                    unix_seconds = int(round(dt.timestamp()))
+                    value = read['measuredAmount']['value']
+                    out.write(f'{METRIC_NAME}{{{label_str}}} {value} {unix_seconds}\n')
+                    samples_written += 1
+            print(f'  {cursor}: {len(valid)} valid / {len(reads)} reads', file=sys.stderr)
+
+            cursor += datetime.timedelta(days=1)
+            if cursor < args.end:
+                time.sleep(args.sleep)
+
+        out.write('# EOF\n')
+
+    print(f'\nWrote {samples_written} samples covering {days_with_data}/{day_count} days '
+          f'to {args.output}', file=sys.stderr)
+    print(f'\nNext steps on the Prometheus host (study):\n'
+          f'  scp {args.output} pi@study:/tmp/\n'
+          f'  ssh pi@study\n'
+          f'  PROMTOOL=/home/pi/observability/prometheus-2.45.0.linux-arm64/promtool\n'
+          f'  $PROMTOOL tsdb create-blocks-from openmetrics {args.output} /tmp/electricity_blocks\n'
+          f'  sudo mv /tmp/electricity_blocks/* /ssd/prometheus-data/\n'
+          f'  sudo systemctl restart prometheus\n', file=sys.stderr)
+
+
+if __name__ == '__main__':
+    main()
