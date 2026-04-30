@@ -105,43 +105,131 @@ async def internal_get_realtime_usage_data():
     authorization_token = await get_response(power_token_url)
     login_headers['authorization'] = 'Bearer ' + authorization_token
 
-    customer_uuid_url = 'https://cned.opower.com/ei/edge/apis/multi-account-v1/cws/cned/customers/current'
-    customer_info = await get_response(customer_uuid_url)
-    customer_uuid = customer_info['utilityAccounts'][0]['uuid']
-
-    # Required since ~Dec 2025 by the cws-real-time-ami-v1 endpoints; otherwise they return 424.
+    customer_url = 'https://cned.opower.com/ei/edge/apis/multi-account-v1/cws/cned/customers/current'
+    customer_info = await get_response(customer_url)
+    customer_uuid = customer_info['uuid']
     login_headers['Opower-Selected-Entities'] = json.dumps([f'urn:opower:customer:uuid:{customer_uuid}'])
 
-    # Another URL is returns account info also. Not sure which is better to use. See:
-    # https://github.com/tronikos/opower/blob/79ca62203932c065b9d282184ea6f9df6d32128f/src/opower/opower.py#L364
-    account_url = f'https://cned.opower.com/ei/edge/apis/cws-real-time-ami-v1/cws/cned/accounts/{customer_uuid}/meters'
-    account_info = await get_response(account_url)
-    account_id = account_info['meters_ids'][0]
+    # The realtime endpoint /cws-real-time-ami-v1/.../accounts/<uuid>/meters has been broken
+    # since ~Dec 2025 (HTTP 424, EDAP returns no meter asset id;
+    # https://github.com/tronikos/opower/issues/180). The ConEd web app sidesteps it by
+    # using the GraphQL API instead. Same data, no EDAP dependency.
+    return await fetch_via_graphql()
 
-    realtime_usage_url = f'https://cned.opower.com/ei/edge/apis/cws-real-time-ami-v1/cws/cned/accounts/{customer_uuid}/meters/{account_id}/usage'
-    realtime_usage = await get_response(realtime_usage_url)
-    realtime_usage = realtime_usage['reads']
+GRAPHQL_URL = 'https://cned.opower.com/ei/edge/apis/dsm-graphql-v1/cws/graphql'
 
-    return format_realtime_usage(realtime_usage)
+# Operation names match what the ConEd web app sends. Servers in this stack often log /
+# rate-limit by operationName, so it's worth keeping them recognizable.
+WBAS_BILLING_ACCOUNTS_QUERY = '''
+query WBAS_BillingAccounts($first: Int, $onlyActive: Boolean) {
+  billingAccountsConnection(first: $first) {
+    edges { node {
+      urn
+      serviceAgreementsConnection(first: 10, onlyActive: $onlyActive) {
+        edges { node { uuid serviceType
+          servicePointsConnection { edges { node { uuid serviceType } } }
+        } }
+      }
+    } }
+  }
+}
+'''
 
-# input: something that looks like this: https://gist.github.com/dasl-/4c6da56ecc9e6ee1cf89f7a05dd45cb2
-def format_realtime_usage(realtime_usage):
-    readings = list(filter(lambda read: read['value'] is not None, realtime_usage))
+WRTAMI_GET_REGISTERS_QUERY = '''
+query WRTAMI_GetRegisters($selectedAccount: ID, $saUuid: String, $spUuid: String) {
+  billingAccountByAuthContext(selectedAccount: $selectedAccount) {
+    serviceAgreementsConnection(onlyActive: true, matching: $saUuid) {
+      edges { node {
+        servicePointsConnection(matching: $spUuid) {
+          edges { node {
+            intervalReads(units: [KWH], serviceQuantityIdentifier: [NET_USAGE], onlyUnverifiedStreams: true) {
+              registerId
+            }
+          } }
+        }
+      } }
+    }
+  }
+}
+'''
 
-    # Readings are taken every 15m. Get the last 24 hours of readings, in case con ed's website
-    # had an extended outage and we have to  catch up. It appears that the API only provides the last
-    # 24 hours of readings anyway.
-    latest_readings = readings[-96:]
-    formatted_readings = []
+# WRTAMI_GetRegisterUsage caps each request at a 24-hour window. Without an explicit
+# timeInterval the server returns the most recent ~24h.
+WRTAMI_GET_REGISTER_USAGE_QUERY = '''
+query WRTAMI_GetRegisterUsage($selectedAccount: ID, $registerId: ID, $saUuid: String, $spUuid: String) {
+  billingAccountByAuthContext(selectedAccount: $selectedAccount) {
+    serviceAgreementsConnection(onlyActive: true, matching: $saUuid) {
+      edges { node {
+        servicePointsConnection(matching: $spUuid) {
+          edges { node {
+            intervalReads(registerId: $registerId, units: [KWH], serviceQuantityIdentifier: [NET_USAGE], onlyUnverifiedStreams: true) {
+              reads { timeInterval measuredAmount { value } }
+            }
+          } }
+        }
+      } }
+    }
+  }
+}
+'''
 
-    for read in latest_readings:
-        dt = datetime.datetime.fromisoformat(read['startTime'])
-        unix_time_ms = int(round(dt.timestamp()))
-        if not unix_time_ms:
+async def post_graphql(operation_name, query, variables):
+    body = {'operationName': operation_name, 'query': query, 'variables': variables}
+    async with session.post(GRAPHQL_URL, json=body, headers=login_headers, timeout=15) as response:
+        if response.status != 200:
+            raise Exception(f'GraphQL HTTP {response.status} for {operation_name}: {await response.text()}')
+        result = await response.json()
+    if 'errors' in result:
+        raise Exception(f'GraphQL errors for {operation_name}: {result["errors"]}')
+    return result['data']
+
+async def fetch_via_graphql():
+    accounts = await post_graphql('WBAS_BillingAccounts', WBAS_BILLING_ACCOUNTS_QUERY,
+                                  {'first': 25, 'onlyActive': True})
+    edges = accounts['billingAccountsConnection']['edges']
+    if not edges:
+        raise Exception('GraphQL returned no billing accounts')
+    node = edges[0]['node']
+    account_urn = node['urn']
+    sa = next(x['node'] for x in node['serviceAgreementsConnection']['edges']
+              if x['node']['serviceType'] == 'ELECTRICITY')
+    sp = next(x['node'] for x in sa['servicePointsConnection']['edges']
+              if x['node']['serviceType'] == 'ELECTRICITY')
+
+    registers = await post_graphql('WRTAMI_GetRegisters', WRTAMI_GET_REGISTERS_QUERY,
+                                   {'selectedAccount': account_urn, 'saUuid': sa['uuid'], 'spUuid': sp['uuid']})
+    interval_reads = (registers['billingAccountByAuthContext']
+                               ['serviceAgreementsConnection']['edges'][0]['node']
+                               ['servicePointsConnection']['edges'][0]['node']
+                               ['intervalReads'])
+    if not interval_reads:
+        raise Exception('GraphQL WRTAMI_GetRegisters returned no intervalReads')
+    register_id = interval_reads[0]['registerId']
+
+    usage = await post_graphql('WRTAMI_GetRegisterUsage', WRTAMI_GET_REGISTER_USAGE_QUERY,
+                               {'selectedAccount': account_urn, 'registerId': register_id,
+                                'saUuid': sa['uuid'], 'spUuid': sp['uuid']})
+    reads = (usage['billingAccountByAuthContext']
+                  ['serviceAgreementsConnection']['edges'][0]['node']
+                  ['servicePointsConnection']['edges'][0]['node']
+                  ['intervalReads'][0]['reads'])
+    return format_realtime_usage(reads)
+
+# Each read looks like:
+#   {"timeInterval": "2026-04-29T01:15:00Z/2026-04-29T01:30:00Z",
+#    "measuredAmount": {"value": 0.177}}
+# Returns (kwh, unix_seconds) tuples for the latest 24h (96 quarter-hour slots).
+def format_realtime_usage(reads):
+    valid = [r for r in reads if r.get('measuredAmount') is not None]
+    formatted = []
+    for read in valid[-96:]:
+        start_iso = read['timeInterval'].split('/', 1)[0]
+        dt = datetime.datetime.fromisoformat(start_iso.replace('Z', '+00:00'))
+        unix_seconds = int(round(dt.timestamp()))
+        if not unix_seconds:
             raise Exception('Unable to parse timestamp from response')
-        formatted_readings.append((float(read['value']), unix_time_ms))
-
-    return formatted_readings
+        formatted.append((float(read['measuredAmount']['value']), unix_seconds))
+    return formatted
 
 async def post_response(url, data = None, json = None, timeout = 10, as_json = True):
     async with session.post(
