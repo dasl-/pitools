@@ -44,7 +44,10 @@ def setup_prometheus():
 
 async def get_realtime_usage_data():
     global session
-    session = aiohttp.ClientSession()
+    # Session-level total timeout is a backstop: every individual request below
+    # also sets its own (smaller) timeout, but if a future call forgets to,
+    # this caps the wait at 30s instead of aiohttp's default 5min.
+    session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
     try:
         return await internal_get_realtime_usage_data()
     except Exception as e:
@@ -62,8 +65,11 @@ async def get_realtime_usage_data():
 # https://github.com/dasl-/pitools/blob/e66a6ededab5272c3d24c40d9a523385466ec8ef/sensors/measure_electricity_usage
 async def internal_get_realtime_usage_data():
     global login_headers
-    # Double-logins are somewhat broken if cookies stay around.
-    # Let's clear everything except device tokens (which allow skipping 2FA)
+    # No-op under the current design: get_realtime_usage_data() creates a fresh
+    # ClientSession on every scrape, so the cookie jar is always empty here.
+    # Kept as a guardrail for any future shift back to a persistent session:
+    # drop stale coned.com cookies but keep CE_DEVICE_ID, which lets ConEd skip
+    # 2FA on a recognized device.
     session.cookie_jar.clear(
         lambda cookie: cookie["domain"] == "www.coned.com"
         and cookie.key != "CE_DEVICE_ID"
@@ -240,7 +246,7 @@ async def post_response(url, data = None, json = None, timeout = 10, as_json = T
         json = json,
         headers = login_headers,
         allow_redirects=True,
-        timeout = 10
+        timeout = timeout
     ) as response:
         if response.status != 200:
             raise Exception(f'Got unexpected status code {response.status} for url: {url}')
