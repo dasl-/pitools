@@ -187,8 +187,8 @@ async def fetch_via_graphql():
     accounts = await post_graphql('WBAS_BillingAccounts', WBAS_BILLING_ACCOUNTS_QUERY,
                                   {'first': 25, 'onlyActive': True})
     edges = accounts['billingAccountsConnection']['edges']
-    if not edges:
-        raise Exception('GraphQL returned no billing accounts')
+    if len(edges) != 1:
+        raise Exception(f'expected exactly 1 billing account, got {len(edges)}')
     node = edges[0]['node']
     account_urn = node['urn']
     sa = next(x['node'] for x in node['serviceAgreementsConnection']['edges']
@@ -220,14 +220,16 @@ async def fetch_via_graphql():
 #    "measuredAmount": {"value": 0.177}}
 # Returns (kwh, unix_seconds) tuples for the latest 24h (96 quarter-hour slots).
 def format_realtime_usage(reads):
-    valid = [r for r in reads if r.get('measuredAmount') is not None]
+    valid = [r for r in reads
+             if r.get('measuredAmount') is not None
+             and r['measuredAmount'].get('value') is not None]
     formatted = []
     for read in valid[-96:]:
         start_iso = read['timeInterval'].split('/', 1)[0]
         dt = datetime.datetime.fromisoformat(start_iso.replace('Z', '+00:00'))
+        if dt.tzinfo is None:
+            raise Exception(f'unexpected naive timestamp from response: {start_iso!r}')
         unix_seconds = int(round(dt.timestamp()))
-        if not unix_seconds:
-            raise Exception('Unable to parse timestamp from response')
         formatted.append((float(read['measuredAmount']['value']), unix_seconds))
     return formatted
 
