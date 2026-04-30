@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""One-shot diagnostic for the ConEd OAuth login flow.
+
+Run on the Pi:  ./sensors/diagnose_coned_login
+Prints the response from each hop (status, cookie expirations, body title) so
+we can see whether the OAuth callback at coned.com/?code=... behaves the same
+on the Pi as on a laptop. Does not print secrets.
+"""
+
+import asyncio
+import json
+import os
+import sys
+
+import aiohttp
+import pyjson5
+import pyotp
+
+
+CONFIG_PATH = os.path.abspath(os.path.dirname(__file__) + '/..') + '/config.json'
+RETURN_URL = '/en/accounts-billing/my-account/energy-use'
+UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+HDRS = {'User-Agent': UA, 'Referer': 'https://www.coned.com/'}
+
+
+def short(s, n=40):
+    if s is None:
+        return None
+    s = str(s)
+    return s if len(s) <= n else s[:n] + '...'
+
+
+def print_set_cookies(resp):
+    for sc in resp.headers.getall('Set-Cookie', []):
+        name = sc.split('=', 1)[0]
+        expires = next((p.strip() for p in sc.split(';') if 'expires=' in p.lower()), '<no expires>')
+        print(f'    set-cookie: {name}; {expires}')
+
+
+async def main():
+    with open(CONFIG_PATH) as f:
+        cfg = pyjson5.decode(f.read())['electricity_credentials']
+    print(f'python {sys.version.split()[0]}, aiohttp {aiohttp.__version__}, openssl {__import__("ssl").OPENSSL_VERSION}')
+
+    async with aiohttp.ClientSession() as s:
+        # 1) login
+        async with s.post(
+            'https://www.coned.com/sitecore/api/ssc/ConEdWeb-Foundation-Login-Areas-LoginAPI/User/0/Login',
+            json={'LoginEmail': cfg['email'], 'LoginPassword': cfg['password'],
+                  'LoginRememberMe': False, 'ReturnUrl': RETURN_URL, 'OpenIdRelayState': ''},
+            headers=HDRS) as r:
+            login = await r.json()
+            print(f'\n1) Login status={r.status}')
+            print(f'   login={login.get("login")} newDevice={login.get("newDevice")} noMfa={login.get("noMfa")} '
+                  f'has_authRedirectUrl={"authRedirectUrl" in login}')
+
+        if 'authRedirectUrl' in login:
+            redirect = login['authRedirectUrl']
+        else:
+            # 2) MFA
+            mfa_code = pyotp.TOTP(cfg['totp_secret']).now()
+            async with s.post(
+                'https://www.coned.com/sitecore/api/ssc/ConEdWeb-Foundation-Login-Areas-LoginAPI/User/0/VerifyFactor',
+                json={'MFACode': mfa_code, 'ReturnUrl': RETURN_URL, 'OpenIdRelayState': ''},
+                headers=HDRS) as r:
+                mfa = await r.json()
+                print(f'\n2) MFA status={r.status} code={mfa.get("code")}')
+                redirect = mfa.get('authRedirectUrl')
+
+        # 3) walk redirect chain manually so we can inspect each hop
+        url = redirect
+        last_url = None
+        for i in range(8):
+            async with s.get(url, headers=HDRS, allow_redirects=False) as r:
+                print(f'\n3.{i}) GET {short(url, 100)}')
+                print(f'    status={r.status}  host={r.url.host}')
+                print_set_cookies(r)
+                loc = r.headers.get('Location')
+                if r.status in (301, 302, 303, 307, 308) and loc:
+                    print(f'    Location: {short(loc, 100)}')
+                    url = loc if loc.startswith('http') else f'https://{r.url.host}{loc}'
+                else:
+                    body = await r.text()
+                    title = ''
+                    if '<title>' in body:
+                        title = body.split('<title>', 1)[1].split('</title>', 1)[0]
+                    desc = ''
+                    if 'name="description"' in body:
+                        try:
+                            desc = body.split('name="description"', 1)[1].split('content="', 1)[1].split('"', 1)[0]
+                        except IndexError:
+                            pass
+                    print(f'    body title: {title!r}')
+                    print(f'    body description: {desc!r}')
+                    last_url = str(r.url)
+                    break
+
+        print('\nFinal cookies in jar (relevant domains):')
+        for c in s.cookie_jar:
+            if any(d in c['domain'] for d in ('coned.com', 'opower.com')):
+                print(f'  {c.key} domain={c["domain"]} expires={c["expires"]!r}')
+
+        # 4) GetOPowerToken
+        async with s.get(
+            'https://www.coned.com/sitecore/api/ssc/ConEd-Cms-Services-Controllers-Opower/OpowerService/0/GetOPowerToken',
+            headers=HDRS) as r:
+            body = await r.text()
+            print(f'\n4) GetOPowerToken status={r.status} body={short(body, 30)!r}')
+            try:
+                token = json.loads(body)
+            except Exception:
+                token = None
+
+        if not token:
+            print('\nNo token -> cannot test customer endpoints.')
+            return
+
+        auth_hdrs = dict(HDRS, authorization=f'Bearer {token}')
+
+        # 5) Compare both customer endpoints
+        for label, cust_url in [
+            ('customers/current',
+             'https://cned.opower.com/ei/edge/apis/multi-account-v1/cws/cned/customers/current'),
+            ('customers?offset=0&batchSize=100&addressFilter=',
+             'https://cned.opower.com/ei/edge/apis/multi-account-v1/cws/cned/customers?offset=0&batchSize=100&addressFilter='),
+        ]:
+            async with s.get(cust_url, headers=auth_hdrs) as r:
+                body = await r.text()
+                print(f'\n5) {label}: status={r.status}')
+                if r.status == 200:
+                    try:
+                        data = json.loads(body)
+                        # Print top-level shape only (no PII values)
+                        if isinstance(data, dict):
+                            print(f'   top-level keys: {sorted(data.keys())}')
+                            if 'customers' in data and data['customers']:
+                                c = data['customers'][0]
+                                print(f'   customers[0] keys: {sorted(c.keys())}')
+                                print(f'   customers[0].uuid present: {"uuid" in c}')
+                                if 'utilityAccounts' in c and c['utilityAccounts']:
+                                    print(f'   customers[0].utilityAccounts[0] keys: {sorted(c["utilityAccounts"][0].keys())}')
+                            if 'utilityAccounts' in data:
+                                print(f'   utilityAccounts[0] keys: {sorted(data["utilityAccounts"][0].keys()) if data["utilityAccounts"] else "empty"}')
+                                print(f'   top-level uuid present: {"uuid" in data}')
+                    except Exception as e:
+                        print(f'   parse error: {e} body[:200]={body[:200]!r}')
+                else:
+                    print(f'   body[:200]={body[:200]!r}')
+
+
+asyncio.run(main())
