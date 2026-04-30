@@ -332,6 +332,8 @@ def main():
     series_labels = dict(SERIES_LABELS)
     if args.label:
         series_labels.update(dict(args.label))
+    label_str = ','.join(f'{k}="{v}"' for k, v in sorted(series_labels.items()))
+    print(f'series labels: {{{label_str}}}', file=sys.stderr)
 
     cfg = pyjson5.decode(open(args.config).read())['electricity_credentials']
     session = requests.Session()
@@ -363,8 +365,6 @@ def main():
     print(f'  account_urn={account_urn}', file=sys.stderr)
     print(f'  saUuid={sa_uuid} spUuid={sp_uuid} registerId={register_id}', file=sys.stderr)
 
-    label_str = ','.join(f'{k}="{v}"' for k, v in sorted(series_labels.items()))
-    print(f'  series labels: {{{label_str}}}', file=sys.stderr)
     samples_written = 0
     day_count = 0
     days_with_data = 0
