@@ -110,33 +110,36 @@ async def internal_get_realtime_usage_data():
     customers_url = 'https://cned.opower.com/ei/edge/apis/multi-account-v1/cws/cned/customers?offset=0&batchSize=100&addressFilter='
     customers_info = await get_response(customers_url)
     customer = customers_info['customers'][0]
-    # The /meters URL path takes the utility-account uuid; the Opower-Selected-Entities
-    # header takes the parent customer uuid. They are different.
     customer_uuid = customer['uuid']
     account_uuid = customer['utilityAccounts'][0]['uuid']
-
-    # Required since ~Dec 2025 by the cws-real-time-ami-v1 endpoints; otherwise they return 424.
     login_headers['Opower-Selected-Entities'] = json.dumps([f'urn:opower:customer:uuid:{customer_uuid}'])
 
-    # Another URL is returns account info also. Not sure which is better to use. See:
-    # https://github.com/tronikos/opower/blob/79ca62203932c065b9d282184ea6f9df6d32128f/src/opower/opower.py#L364
-    account_url = f'https://cned.opower.com/ei/edge/apis/cws-real-time-ami-v1/cws/cned/accounts/{account_uuid}/meters'
-    account_info = await get_response(account_url)
-    account_id = account_info['meters_ids'][0]
+    # The realtime endpoint (cws-real-time-ami-v1/.../meters) has been broken for this account
+    # since late Dec 2025: ConEd's EDAP backend stopped returning meter asset IDs, so /meters
+    # returns 424 and there's no way to look up the meter id needed by /meters/<id>/usage.
+    # See https://github.com/tronikos/opower/issues/180. As a workaround, use DataBrowser-v1,
+    # which doesn't require a meter asset id. Trade-off: data is delayed ~13h instead of ~1h.
+    end = datetime.date.today()
+    start = end - datetime.timedelta(days=2)
+    usage_url = (
+        f'https://cned.opower.com/ei/edge/apis/DataBrowser-v1/cws/utilities/cned/utilityAccounts/{account_uuid}/reads'
+        f'?aggregateType=QUARTER_HOUR&startDate={start.isoformat()}&endDate={end.isoformat()}'
+    )
+    usage_response = await get_response(usage_url)
+    return format_realtime_usage(usage_response['reads'])
 
-    realtime_usage_url = f'https://cned.opower.com/ei/edge/apis/cws-real-time-ami-v1/cws/cned/accounts/{account_uuid}/meters/{account_id}/usage'
-    realtime_usage = await get_response(realtime_usage_url)
-    realtime_usage = realtime_usage['reads']
-
-    return format_realtime_usage(realtime_usage)
-
-# input: something that looks like this: https://gist.github.com/dasl-/4c6da56ecc9e6ee1cf89f7a05dd45cb2
+# Each read looks like:
+#   {"startTime": "2026-04-29T07:45:00.000-04:00",
+#    "endTime":   "2026-04-29T08:00:00.000-04:00",
+#    "consumption": {"value": 0.06, "type": "ACTUAL"}, ...}
 def format_realtime_usage(realtime_usage):
-    readings = list(filter(lambda read: read['value'] is not None, realtime_usage))
+    readings = list(filter(
+        lambda read: read.get('consumption', {}).get('value') is not None,
+        realtime_usage
+    ))
 
     # Readings are taken every 15m. Get the last 24 hours of readings, in case con ed's website
-    # had an extended outage and we have to  catch up. It appears that the API only provides the last
-    # 24 hours of readings anyway.
+    # had an extended outage and we have to catch up.
     latest_readings = readings[-96:]
     formatted_readings = []
 
@@ -145,7 +148,7 @@ def format_realtime_usage(realtime_usage):
         unix_time_ms = int(round(dt.timestamp()))
         if not unix_time_ms:
             raise Exception('Unable to parse timestamp from response')
-        formatted_readings.append((float(read['value']), unix_time_ms))
+        formatted_readings.append((float(read['consumption']['value']), unix_time_ms))
 
     return formatted_readings
 
