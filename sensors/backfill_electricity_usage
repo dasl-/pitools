@@ -5,10 +5,11 @@ Backfill historical 15-minute electricity usage data into Prometheus.
 Why this exists: the live scrape path ingests electricity_kwh through the
 timestamped_exporter, gated by `out_of_order_time_window: 1d`. Anything older
 than 24 hours is dropped at scrape time, so a multi-month gap (e.g., the
-ConEd EDAP outage starting late Dec 2025) cannot be repaired through the
-normal scrape pipeline. `promtool tsdb create-blocks-from openmetrics` is
-Prometheus's canonical tool for inserting historical data: it materializes
-TSDB blocks directly on disk that the server picks up at startup.
+ConEd realtime-endpoint outage starting late Dec 2025) cannot be repaired
+through the normal scrape pipeline. `promtool tsdb create-blocks-from
+openmetrics` is Prometheus's canonical tool for inserting historical data:
+it materializes TSDB blocks directly on disk that the server picks up at
+startup.
 
 ============================================================================
 RUNBOOK
