@@ -9,6 +9,7 @@ import aiohttp
 import pyotp
 import pyjson5
 import os
+import json
 import traceback
 
 config = None
@@ -107,6 +108,9 @@ async def internal_get_realtime_usage_data():
     customer_uuid_url = 'https://cned.opower.com/ei/edge/apis/multi-account-v1/cws/cned/customers/current'
     customer_info = await get_response(customer_uuid_url)
     customer_uuid = customer_info['utilityAccounts'][0]['uuid']
+
+    # Required since ~Dec 2025 by the cws-real-time-ami-v1 endpoints; otherwise they return 424.
+    login_headers['Opower-Selected-Entities'] = json.dumps([f'urn:opower:customer:uuid:{customer_uuid}'])
 
     # Another URL is returns account info also. Not sure which is better to use. See:
     # https://github.com/tronikos/opower/blob/79ca62203932c065b9d282184ea6f9df6d32128f/src/opower/opower.py#L364
