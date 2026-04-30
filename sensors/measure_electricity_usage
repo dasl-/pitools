@@ -110,10 +110,10 @@ async def internal_get_realtime_usage_data():
     customer_uuid = customer_info['uuid']
     login_headers['Opower-Selected-Entities'] = json.dumps([f'urn:opower:customer:uuid:{customer_uuid}'])
 
-    # The realtime endpoint /cws-real-time-ami-v1/.../accounts/<uuid>/meters has been broken
-    # since ~Dec 2025 (HTTP 424, EDAP returns no meter asset id;
-    # https://github.com/tronikos/opower/issues/180). The ConEd web app sidesteps it by
-    # using the GraphQL API instead. Same data, no EDAP dependency.
+    # The realtime endpoint /cws-real-time-ami-v1/.../accounts/<uuid>/meters has been
+    # broken for our account since ~Dec 2025 (HTTP 424; sometimes 404). See
+    # https://github.com/tronikos/opower/issues/180. The ConEd web app sidesteps the
+    # issue by using the GraphQL API instead. Same data, no dependency on the broken path.
     return await fetch_via_graphql()
 
 GRAPHQL_URL = 'https://cned.opower.com/ei/edge/apis/dsm-graphql-v1/cws/graphql'
