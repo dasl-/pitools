@@ -114,43 +114,160 @@ async def internal_get_realtime_usage_data():
     account_uuid = customer['utilityAccounts'][0]['uuid']
     login_headers['Opower-Selected-Entities'] = json.dumps([f'urn:opower:customer:uuid:{customer_uuid}'])
 
-    # The realtime endpoint (cws-real-time-ami-v1/.../meters) has been broken for this account
-    # since late Dec 2025: ConEd's EDAP backend stopped returning meter asset IDs, so /meters
-    # returns 424 and there's no way to look up the meter id needed by /meters/<id>/usage.
-    # See https://github.com/tronikos/opower/issues/180. As a workaround, use DataBrowser-v1,
-    # which doesn't require a meter asset id. Trade-off: data is delayed ~13h instead of ~1h.
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=2)
-    usage_url = (
-        f'https://cned.opower.com/ei/edge/apis/DataBrowser-v1/cws/utilities/cned/utilityAccounts/{account_uuid}/reads'
-        f'?aggregateType=QUARTER_HOUR&startDate={start.isoformat()}&endDate={end.isoformat()}'
-    )
-    usage_response = await get_response(usage_url)
-    return format_realtime_usage(usage_response['reads'])
+    # Two paths for fetching usage data:
+    #  - "Legacy" REST: /cws-real-time-ami-v1/.../accounts/<uuid>/meters then /meters/<id>/usage.
+    #    Lowest latency (~1h) when working, but broken since late Dec 2025 for accounts whose
+    #    UUIDs were rotated by ConEd: /meters returns 424 because the EDAP backend doesn't have
+    #    a meter asset id mapping for the new UUIDs. See https://github.com/tronikos/opower/issues/180.
+    #  - GraphQL: WBAS_BillingAccounts -> WRTAMI_GetRegisters -> WRTAMI_GetRegisterUsage. This is
+    #    what the ConEd web app uses; it bypasses EDAP entirely. ~50min latency, currently working.
+    if should_use_legacy_realtime_endpoint():
+        try:
+            return await fetch_via_legacy_realtime_endpoint(account_uuid)
+        except Exception as e:
+            print(
+                f'Legacy realtime endpoint failed ({e}); falling back to GraphQL.',
+                flush=True,
+            )
+    return await fetch_via_graphql()
 
-# Each read looks like:
-#   {"startTime": "2026-04-29T07:45:00.000-04:00",
-#    "endTime":   "2026-04-29T08:00:00.000-04:00",
-#    "consumption": {"value": 0.06, "type": "ACTUAL"}, ...}
-def format_realtime_usage(realtime_usage):
-    readings = list(filter(
-        lambda read: read.get('consumption', {}).get('value') is not None,
-        realtime_usage
-    ))
+# User-controlled toggle. Return True to attempt the legacy /cws-real-time-ami-v1
+# REST endpoint first and fall back to GraphQL on failure. Return False to skip
+# straight to GraphQL.
+def should_use_legacy_realtime_endpoint():
+    # TODO: fill in your gating logic here.
+    return False
 
-    # Readings are taken every 15m. Get the last 24 hours of readings, in case con ed's website
-    # had an extended outage and we have to catch up.
-    latest_readings = readings[-96:]
-    formatted_readings = []
+async def fetch_via_legacy_realtime_endpoint(account_uuid):
+    meters_url = f'https://cned.opower.com/ei/edge/apis/cws-real-time-ami-v1/cws/cned/accounts/{account_uuid}/meters'
+    meters_info = await get_response(meters_url)
+    meter_id = meters_info['meters_ids'][0]
 
-    for read in latest_readings:
-        dt = datetime.datetime.fromisoformat(read['startTime'])
-        unix_time_ms = int(round(dt.timestamp()))
-        if not unix_time_ms:
+    usage_url = f'https://cned.opower.com/ei/edge/apis/cws-real-time-ami-v1/cws/cned/accounts/{account_uuid}/meters/{meter_id}/usage'
+    usage = await get_response(usage_url)
+    return format_legacy_reads(usage['reads'])
+
+GRAPHQL_URL = 'https://cned.opower.com/ei/edge/apis/dsm-graphql-v1/cws/graphql'
+
+WBAS_BILLING_ACCOUNTS_QUERY = '''
+query WBAS_BillingAccounts($first: Int, $onlyActive: Boolean) {
+  billingAccountsConnection(first: $first) {
+    edges {
+      node {
+        urn uuid utilityCode
+        serviceAgreementsConnection(first: 10, onlyActive: $onlyActive) {
+          edges { node { urn uuid serviceType
+            servicePointsConnection { edges { node { urn uuid serviceType } } }
+          } }
+        }
+      }
+    }
+  }
+}
+'''
+
+WRTAMI_GET_REGISTERS_QUERY = '''
+query WRTAMI_GetRegisters($selectedAccount: ID, $saUuid: String, $spUuid: String) {
+  billingAccountByAuthContext(selectedAccount: $selectedAccount) {
+    serviceAgreementsConnection(onlyActive: true, matching: $saUuid) {
+      edges { node {
+        servicePointsConnection(matching: $spUuid) {
+          edges { node {
+            intervalReads(units: [KWH], serviceQuantityIdentifier: [NET_USAGE], onlyUnverifiedStreams: true) {
+              registerId
+            }
+          } }
+        }
+      } }
+    }
+  }
+}
+'''
+
+WRTAMI_GET_REGISTER_USAGE_QUERY = '''
+query WRTAMI_GetRegisterUsage($selectedAccount: ID, $registerId: ID, $saUuid: String, $spUuid: String) {
+  billingAccountByAuthContext(selectedAccount: $selectedAccount) {
+    serviceAgreementsConnection(onlyActive: true, matching: $saUuid) {
+      edges { node {
+        servicePointsConnection(matching: $spUuid) {
+          edges { node {
+            intervalReads(registerId: $registerId, units: [KWH], serviceQuantityIdentifier: [NET_USAGE], onlyUnverifiedStreams: true) {
+              reads { timeInterval measuredAmount { value } }
+            }
+          } }
+        }
+      } }
+    }
+  }
+}
+'''
+
+async def post_graphql(operation_name, query, variables):
+    body = {'operationName': operation_name, 'query': query, 'variables': variables}
+    async with session.post(GRAPHQL_URL, json=body, headers=login_headers, timeout=15) as r:
+        if r.status != 200:
+            raise Exception(f'GraphQL HTTP {r.status} for {operation_name}: {await r.text()}')
+        result = await r.json()
+    if 'errors' in result:
+        raise Exception(f'GraphQL errors for {operation_name}: {result["errors"]}')
+    return result['data']
+
+async def fetch_via_graphql():
+    accounts = await post_graphql('WBAS_BillingAccounts', WBAS_BILLING_ACCOUNTS_QUERY,
+                                  {'first': 25, 'onlyActive': True})
+    edges = accounts['billingAccountsConnection']['edges']
+    if not edges:
+        raise Exception('GraphQL returned no billing accounts')
+    node = edges[0]['node']
+    account_urn = node['urn']
+    sa = next(x['node'] for x in node['serviceAgreementsConnection']['edges']
+              if x['node']['serviceType'] == 'ELECTRICITY')
+    sp = next(x['node'] for x in sa['servicePointsConnection']['edges']
+              if x['node']['serviceType'] == 'ELECTRICITY')
+
+    regs = await post_graphql('WRTAMI_GetRegisters', WRTAMI_GET_REGISTERS_QUERY,
+                              {'selectedAccount': account_urn, 'saUuid': sa['uuid'], 'spUuid': sp['uuid']})
+    interval_reads = (regs['billingAccountByAuthContext']
+                          ['serviceAgreementsConnection']['edges'][0]['node']
+                          ['servicePointsConnection']['edges'][0]['node']
+                          ['intervalReads'])
+    if not interval_reads:
+        raise Exception('GraphQL WRTAMI_GetRegisters returned no intervalReads')
+    register_id = interval_reads[0]['registerId']
+
+    usage = await post_graphql('WRTAMI_GetRegisterUsage', WRTAMI_GET_REGISTER_USAGE_QUERY,
+                               {'selectedAccount': account_urn, 'registerId': register_id,
+                                'saUuid': sa['uuid'], 'spUuid': sp['uuid']})
+    reads = (usage['billingAccountByAuthContext']
+                  ['serviceAgreementsConnection']['edges'][0]['node']
+                  ['servicePointsConnection']['edges'][0]['node']
+                  ['intervalReads'][0]['reads'])
+    return format_graphql_reads(reads)
+
+# Legacy /cws-real-time-ami-v1/.../usage shape: list of
+#   {"startTime": "2026-04-29T07:45:00.000-04:00", "value": 0.06, ...}
+def format_legacy_reads(reads):
+    valid = [r for r in reads if r['value'] is not None]
+    return _to_prometheus_tuples(valid, lambda r: (r['startTime'], r['value']))
+
+# GraphQL WRTAMI_GetRegisterUsage shape: list of
+#   {"timeInterval": "2026-04-29T01:15:00Z/2026-04-29T01:30:00Z",
+#    "measuredAmount": {"value": 0.177}}
+def format_graphql_reads(reads):
+    valid = [r for r in reads if r.get('measuredAmount') is not None]
+    return _to_prometheus_tuples(valid, lambda r: (r['timeInterval'].split('/', 1)[0], r['measuredAmount']['value']))
+
+def _to_prometheus_tuples(reads, extract):
+    # Take the latest 24h (96 quarter-hour slots), convert to (kwh, unix_seconds) tuples.
+    formatted = []
+    for read in reads[-96:]:
+        start_iso, value = extract(read)
+        dt = datetime.datetime.fromisoformat(start_iso.replace('Z', '+00:00'))
+        unix_seconds = int(round(dt.timestamp()))
+        if not unix_seconds:
             raise Exception('Unable to parse timestamp from response')
-        formatted_readings.append((float(read['consumption']['value']), unix_time_ms))
-
-    return formatted_readings
+        formatted.append((float(value), unix_seconds))
+    return formatted
 
 async def post_response(url, data = None, json = None, timeout = 10, as_json = True):
     async with session.post(
