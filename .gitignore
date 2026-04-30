@@ -8,3 +8,6 @@ __pycache__/
 *.db
 *.db.bak
 config.json
+# HAR captures may contain bearer tokens, session cookies, and account UUIDs.
+*.har
+HAR.json
