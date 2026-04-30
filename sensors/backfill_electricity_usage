@@ -79,13 +79,20 @@ you can inspect them before moving:
     PROMTOOL=/home/pi/observability/prometheus-2.45.0.linux-arm64/promtool
     rm -rf /tmp/electricity_blocks
     $PROMTOOL tsdb create-blocks-from openmetrics \\
+        --max-block-duration=24h \\
         /tmp/electricity_backfill.openmetrics \\
         /tmp/electricity_blocks
 
+Without --max-block-duration, promtool defaults to 2h blocks — for a 4-month
+gap that's ~1600 tiny block dirs, which works but stresses Prometheus's
+compactor for hours after restart. With 24h, you get ~130-180 blocks
+(promtool snaps to its internal tier sizing, so actual durations are 18h
+or shorter at the trailing edge), which is much cleaner.
+
 Inspect:
 
-    ls -la /tmp/electricity_blocks/                          # one or more 26-char-id directories
-    $PROMTOOL tsdb analyze /tmp/electricity_blocks/<id>      # confirm series and sample counts
+    ls /tmp/electricity_blocks/ | wc -l        # ~130-180 block dirs
+    $PROMTOOL tsdb analyze /tmp/electricity_blocks   # whole-dir analyze; no trailing block id
 
 ----------------------------------------------------------------------------
 Step 5. Stop Prometheus, move the blocks in, restart.
@@ -96,7 +103,7 @@ while running, but stopping is safer for a manual block move.
     ssh pi@study
     sudo systemctl stop prometheus
     sudo mv /tmp/electricity_blocks/* /ssd/prometheus-data/
-    sudo chown -R prometheus:prometheus /ssd/prometheus-data/<new-block-id>
+    sudo chown -R root:root /ssd/prometheus-data
     sudo systemctl start prometheus
     sudo systemctl status prometheus  # confirm it's healthy
 
