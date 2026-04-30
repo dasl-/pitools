@@ -42,6 +42,19 @@ async def main():
         cfg = pyjson5.decode(f.read())['electricity_credentials']
     print(f'python {sys.version.split()[0]}, aiohttp {aiohttp.__version__}, openssl {__import__("ssl").OPENSSL_VERSION}')
 
+    # 0) TLS fingerprint via JA3 echo service (so we can compare with other devices/clients)
+    try:
+        async with aiohttp.ClientSession() as s0:
+            async with s0.get('https://tls.peet.ws/api/all') as r:
+                data = await r.json()
+                tls = data.get('tls', {})
+                print(f'\n0) TLS fingerprint (laptop=478843a4cce1e9955bfcf160342b6e11)')
+                print(f'   JA3_HASH: {tls.get("ja3_hash")}')
+                print(f'   JA4:      {tls.get("ja4")}')
+                print(f'   ciphers: {len(tls.get("ciphers", []))}')
+    except Exception as e:
+        print(f'0) JA3 fetch failed: {e}')
+
     async with aiohttp.ClientSession() as s:
         # 1) login
         async with s.post(
