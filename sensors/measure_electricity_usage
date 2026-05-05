@@ -45,7 +45,7 @@ def setup_prometheus():
 async def get_realtime_usage_data():
     global session
     # Session-level total timeout is a backstop: every individual request below
-    # also sets its own (smaller) timeout, but if a future call forgets to,
+    # also sets its own timeout, but if a future call forgets to,
     # this caps the wait at 30s instead of aiohttp's default 5min.
     session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
     try:
@@ -109,6 +109,8 @@ async def internal_get_realtime_usage_data():
 
     power_token_url = "https://www.coned.com/sitecore/api/ssc/ConEd-Cms-Services-Controllers-Opower/OpowerService/0/GetOPowerToken"
     authorization_token = await get_response(power_token_url)
+    if not isinstance(authorization_token, str) or not authorization_token:
+        raise Exception(f'GetOPowerToken returned unexpected body: {authorization_token!r}')
     login_headers['authorization'] = 'Bearer ' + authorization_token
 
     customer_url = 'https://cned.opower.com/ei/edge/apis/multi-account-v1/cws/cned/customers/current'
@@ -181,7 +183,7 @@ query WRTAMI_GetRegisterUsage($selectedAccount: ID, $registerId: ID, $saUuid: St
 
 async def post_graphql(operation_name, query, variables):
     body = {'operationName': operation_name, 'query': query, 'variables': variables}
-    async with session.post(GRAPHQL_URL, json=body, headers=login_headers, timeout=15) as response:
+    async with session.post(GRAPHQL_URL, json=body, headers=login_headers, timeout=30) as response:
         if response.status != 200:
             raise Exception(f'GraphQL HTTP {response.status} for {operation_name}: {await response.text()}')
         result = await response.json()
@@ -239,7 +241,7 @@ def format_realtime_usage(reads):
         formatted.append((float(read['measuredAmount']['value']), unix_seconds))
     return formatted
 
-async def post_response(url, data = None, json = None, timeout = 10, as_json = True):
+async def post_response(url, data = None, json = None, timeout = 30, as_json = True):
     async with session.post(
         url,
         data = data,
@@ -255,7 +257,7 @@ async def post_response(url, data = None, json = None, timeout = 10, as_json = T
         else:
             return await response.text()
 
-async def get_response(url, timeout = 10, as_json = True):
+async def get_response(url, timeout = 30, as_json = True):
     async with session.get(
         url,
         headers = login_headers,
