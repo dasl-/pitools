@@ -109,16 +109,8 @@ async def internal_get_realtime_usage_data():
 
     power_token_url = "https://www.coned.com/sitecore/api/ssc/ConEd-Cms-Services-Controllers-Opower/OpowerService/0/GetOPowerToken"
     authorization_token = await get_response(power_token_url)
-    # GetOPowerToken occasionally 200s with a null/empty body during upstream
-    # flakes; surface a clear error rather than a TypeError on the concat below.
-    # Log only the shape (not the value) so a future envelope-shaped response
-    # doesn't dump the raw token into syslog.
     if not isinstance(authorization_token, str) or not authorization_token:
-        raise Exception(
-            f'GetOPowerToken returned unexpected body: '
-            f'type={type(authorization_token).__name__}, '
-            f'empty={not authorization_token}'
-        )
+        raise Exception(f'GetOPowerToken returned unexpected body: {authorization_token!r}')
     login_headers['authorization'] = 'Bearer ' + authorization_token
 
     customer_url = 'https://cned.opower.com/ei/edge/apis/multi-account-v1/cws/cned/customers/current'
