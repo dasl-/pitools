@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+#
+# Install the systemd service+timer that runs the prometheus retention cron.
+#
+# The cron lives at <repo>/observability/prometheus_retention_cron and is
+# pointed at directly by the systemd unit (matching the install_pitoolsmon
+# pattern), so a `git pull` is enough to update the script.
+#
+# Defaults to DRY_RUN=true. After verifying dry-run output for a few days,
+# edit the Environment= line in the .service file and reload:
+#
+#     sudo sed -i 's/Environment=DRY_RUN=true/Environment=DRY_RUN=false/' \
+#         /etc/systemd/system/prometheus-retention-cron.service
+#     sudo systemctl daemon-reload
+#
+# See: https://github.com/dasl-/pitools/issues/13
+
+set -euo pipefail -o errtrace
+
+BASE_DIR="$(dirname "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )")"
+
+main(){
+    trap 'fail $? $LINENO' ERR
+
+    info "\\nInstalling prometheus_retention_cron..."
+
+    setupSystemd
+
+    info "\\nFinished installing prometheus_retention_cron."
+    info "Timer status:    sudo systemctl status prometheus-retention-cron.timer"
+    info "Trigger now:     sudo systemctl start prometheus-retention-cron.service"
+    info "Tail logs:       sudo journalctl -u prometheus-retention-cron.service -f"
+    info "Currently DRY_RUN=true. Verify a few runs, then flip DRY_RUN=false in the .service file."
+}
+
+setupSystemd(){
+    info "\\nSetting up systemd service + timer..."
+
+cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention-cron.service >/dev/null
+[Unit]
+Description=Trim non-env prometheus series older than retention window
+After=prometheus.service
+Requires=prometheus.service
+
+[Service]
+Type=oneshot
+# clean_tombstones is synchronous and rewrites compacted blocks; give it
+# plenty of headroom so systemd doesn't kill the run mid-rewrite.
+TimeoutStartSec=30min
+Environment=HOME=/root
+Environment=DRY_RUN=true
+ExecStart=$BASE_DIR/observability/prometheus_retention_cron
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=PROM_RETENTION
+EOF
+
+cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention-cron.timer >/dev/null
+[Unit]
+Description=Daily prometheus retention trim
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+    sudo chown root:root /etc/systemd/system/prometheus-retention-cron.service
+    sudo chown root:root /etc/systemd/system/prometheus-retention-cron.timer
+    sudo chmod 644 /etc/systemd/system/prometheus-retention-cron.service
+    sudo chmod 644 /etc/systemd/system/prometheus-retention-cron.timer
+    sudo systemctl enable /etc/systemd/system/prometheus-retention-cron.timer
+    sudo systemctl daemon-reload
+    sudo systemctl restart prometheus-retention-cron.timer
+}
+
+fail(){
+    local exit_code=$1
+    local line_no=$2
+    local script_name
+    script_name=$(basename "${BASH_SOURCE[0]}")
+    die "Error in $script_name at line number: $line_no with exit code: $exit_code"
+}
+
+info(){
+    echo -e "\x1b[32m$*\x1b[0m"
+}
+
+warn(){
+    echo -e "\x1b[33m$*\x1b[0m"
+}
+
+die(){
+    echo
+    echo -e "\x1b[31m$*\x1b[0m" >&2
+    exit 1
+}
+
+main "$@"

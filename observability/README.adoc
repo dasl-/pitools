@@ -36,6 +36,53 @@ See https://github.com/dasl-/pitools/blob/main/sensors/measure_city_data[`measur
 
 See my https://dasl.cc/2024/07/07/setting-custom-timestamps-for-prometheus-metrics/[blog post] on timestamped Prometheus metrics for more details.
 
+## Prometheus per-metric retention
+Prometheus has a single global retention setting and no built-in per-metric retention (https://github.com/prometheus/prometheus/issues/1381[upstream issue]). We want to keep environmental metrics (temperature, humidity, electricity, etc.) for years but only need pi system metrics (`node_*`, etc.) for ~60 days. The workaround is a daily systemd timer that calls Prometheus's `delete_series` + `clean_tombstones` admin APIs to trim non-env series older than 60 days. See https://github.com/dasl-/pitools/issues/13[issue #13] for the alternatives we considered.
+
+The env-metric allowlist is a single regex (`ENV_REGEX`) in https://github.com/dasl-/pitools/blob/main/observability/prometheus_retention_cron[`prometheus_retention_cron`]. Currently it's `^(ambient_|city_|electricity_).*`, which matches everything emitted by `sensors/measure_temp_and_humidity`, `sensors/measure_air_quality`, `sensors/measure_city_data`, and `sensors/measure_electricity_usage`.
+
+### Adding a new env metric
+**If you add a new metric you want retained for years, you must add its prefix to `ENV_REGEX` before its data ages past 60 days, or the trailing edge will be deleted.** Mitigation: the cron runs a sanity check (`SAFETY_MIN_ENV_SERIES`) that aborts the whole run if `ENV_REGEX` matches fewer than the expected number of env series — this protects against typos in the regex itself, not against forgetting to add a new metric.
+
+### Install
+....
+ssh pi@study.local 'cd /home/pi/development/pitools && git pull && /home/pi/development/pitools/observability/install_prometheus_retention_cron'
+....
+The installer drops a `prometheus-retention-cron.service` (oneshot) and a `prometheus-retention-cron.timer` (daily 03:00, `Persistent=true`). It defaults to `DRY_RUN=true` so a fresh install is non-destructive.
+
+### Verify and flip DRY_RUN=false
+. Trigger a dry run immediately: `sudo systemctl start prometheus-retention-cron.service`
+. Tail logs: `sudo journalctl -u prometheus-retention-cron.service -n 50`
+. Confirm the sanity check passes and the reported non-env series count is sane (low thousands, not millions).
+. Take a TSDB snapshot before the first destructive run (see "Snapshot before destructive changes" below).
+. Edit the unit's environment and reload:
+....
+sudo sed -i 's/Environment=DRY_RUN=true/Environment=DRY_RUN=false/' /etc/systemd/system/prometheus-retention-cron.service
+sudo systemctl daemon-reload
+sudo systemctl start prometheus-retention-cron.service
+....
+. Watch `du -sh /ssd/prometheus-data` over 60–70 days. The first ~60 days nothing happens (no data is yet old enough). From day 60 the size should plateau and then track only env-metric ingest.
+
+### Snapshot before destructive changes
+Before flipping `DRY_RUN=false` for the first time (or before any change to `ENV_REGEX`), take a Prometheus TSDB snapshot. The snapshot uses hardlinks so it costs near-zero disk at creation, and is a clean atomic point-in-time copy.
+....
+ssh pi@study.local 'df -h /ssd && curl -fsS -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot'
+....
+Record the returned snapshot name. The snapshot lives at `/ssd/prometheus-data/snapshots/<name>`. Disk usage of the snapshot grows over time as live compaction breaks hardlinks, so plan to delete it after ~90 days of confidence:
+....
+ssh pi@study.local 'sudo rm -rf /ssd/prometheus-data/snapshots/<name>'
+....
+
+### Restore from snapshot
+....
+sudo systemctl stop prometheus
+sudo mv /ssd/prometheus-data /ssd/prometheus-data.broken
+sudo cp -r /ssd/prometheus-data.broken/snapshots/<name> /ssd/prometheus-data
+sudo chown -R root:root /ssd/prometheus-data
+sudo systemctl start prometheus
+....
+The snapshot lives on the same `/ssd` as the live TSDB, so this protects against logical errors (bad cron regex, accidental deletion) but **not** against `/ssd` disk failure.
+
 ## Grafana configuration
 ### If starting with no pre-existing `grafana.db` file
 . The username and password is admin / admin by default on first login. Change password to same as WiFi password. : http://study.local:3000 
