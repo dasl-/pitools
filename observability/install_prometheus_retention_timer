@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Install the systemd service+timer that runs the prometheus retention cron.
+# Install the systemd service+timer that runs the prometheus retention timer.
 # See: https://github.com/dasl-/pitools/issues/13
 
 set -euo pipefail -o errtrace
@@ -10,20 +10,20 @@ BASE_DIR="$(dirname "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 &&
 main(){
     trap 'fail $? $LINENO' ERR
 
-    info "\\nInstalling prometheus_retention_cron..."
+    info "\\nInstalling prometheus_retention_timer..."
 
     setupSystemd
 
-    info "\\nFinished installing prometheus_retention_cron."
-    info "Timer status:    sudo systemctl status prometheus-retention-cron.timer"
-    info "Trigger now:     sudo systemctl start prometheus-retention-cron.service"
-    info "Tail logs:       sudo journalctl -u prometheus-retention-cron.service -f"
+    info "\\nFinished installing prometheus_retention_timer."
+    info "Timer status:    sudo systemctl status prometheus-retention.timer"
+    info "Trigger now:     sudo systemctl start prometheus-retention.service"
+    info "Tail logs:       sudo journalctl -u prometheus-retention.service -f"
 }
 
 setupSystemd(){
     info "\\nSetting up systemd service + timer..."
 
-cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention-cron.service >/dev/null
+cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention.service >/dev/null
 [Unit]
 Description=Trim prometheus series outside the keep-list older than retention window
 After=prometheus.service
@@ -36,13 +36,13 @@ Type=oneshot
 TimeoutStartSec=30min
 Environment=HOME=/root
 Environment=DRY_RUN=false
-ExecStart=$BASE_DIR/observability/prometheus_retention_cron
+ExecStart=$BASE_DIR/observability/prometheus_retention_timer
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=PROMETHEUS_RETENTION_CRON
+SyslogIdentifier=PROMETHEUS_RETENTION
 EOF
 
-cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention-cron.timer >/dev/null
+cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention.timer >/dev/null
 [Unit]
 Description=Daily prometheus retention trim
 
@@ -53,13 +53,13 @@ OnCalendar=*-*-* 09:00:00
 WantedBy=timers.target
 EOF
 
-    sudo chown root:root /etc/systemd/system/prometheus-retention-cron.service
-    sudo chown root:root /etc/systemd/system/prometheus-retention-cron.timer
-    sudo chmod 644 /etc/systemd/system/prometheus-retention-cron.service
-    sudo chmod 644 /etc/systemd/system/prometheus-retention-cron.timer
-    sudo systemctl enable /etc/systemd/system/prometheus-retention-cron.timer
+    sudo chown root:root /etc/systemd/system/prometheus-retention.service
+    sudo chown root:root /etc/systemd/system/prometheus-retention.timer
+    sudo chmod 644 /etc/systemd/system/prometheus-retention.service
+    sudo chmod 644 /etc/systemd/system/prometheus-retention.timer
+    sudo systemctl enable /etc/systemd/system/prometheus-retention.timer
     sudo systemctl daemon-reload
-    sudo systemctl restart prometheus-retention-cron.timer
+    sudo systemctl restart prometheus-retention.timer
 }
 
 fail(){

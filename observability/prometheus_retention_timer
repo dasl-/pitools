@@ -21,7 +21,7 @@ DRY_RUN="${DRY_RUN:-true}"
 
 # Floor on keep-list series count. If fewer are found, abort without deleting.
 # We currently emit 11 distinct metrics matching KEEP_REGEX from sensors/*; 8
-# leaves headroom for one or two sensors being temporarily offline at cron time.
+# leaves headroom for one or two sensors being temporarily offline at timer time.
 SAFETY_MIN_KEEP_SERIES="${SAFETY_MIN_KEEP_SERIES:-8}"
 
 main(){
@@ -32,7 +32,7 @@ main(){
     local cutoff_human
     cutoff_human=$(date -u -d "@$cutoff_epoch" -Iseconds)
 
-    info "Retention cron starting. cutoff=${cutoff_human} dry_run=${DRY_RUN}"
+    info "Retention timer starting. cutoff=${cutoff_human} dry_run=${DRY_RUN}"
 
     local keep_series_count
     keep_series_count=$(countSeries "{__name__=~\"$KEEP_REGEX\"}")
@@ -61,7 +61,7 @@ main(){
     info "Calling clean_tombstones..."
     curl -fsS -X POST "$PROM_URL/api/v1/admin/tsdb/clean_tombstones" >/dev/null
 
-    info "Retention cron finished. Trimmed non-keep-list series with end<=${cutoff_human}."
+    info "Retention timer finished. Trimmed non-keep-list series with end<=${cutoff_human}."
 }
 
 # Count series matching the given selector via the /api/v1/series endpoint.
