@@ -22,7 +22,7 @@ PROMETHEUS_VERSION="$VERSION_NUMBER.linux-armv7"
 if [[ $(getconf LONG_BIT)  == '64' ]] ; then
     PROMETHEUS_VERSION="$VERSION_NUMBER.linux-arm64"
 else
-    warn "\\nYou are installing prometheus on a 32-bit OS. This may result in memory allocation errors that will cause prometheus to crash! We recommend using a 64-bit OS."
+    die "\\nYou are installing prometheus on a 32-bit OS. This may result in memory allocation errors that will cause prometheus to crash! You must use a 64-bit OS."
 fi
 
 
