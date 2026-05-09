@@ -5,7 +5,7 @@
 ## Summary
 . Install node_exporter on all pis
 . Install pitoolsmon on all pis
-. install timestamped_exporter, grafana, and prometheus on one host: study.local
+. install timestamped_exporter, grafana, prometheus, and prometheus_retention_timer on one host: study.local
 . Access grafana at http://study.local:3000
 
 ## node_exporter dsh install command
@@ -35,6 +35,11 @@ The timestamped_exporter is simply a python server that concatenates and serves 
 See https://github.com/dasl-/pitools/blob/main/sensors/measure_city_data[`measure_city_data`] for an example of how to write timestamped `*.prom` files such that the timestamped_exporter can export them to prometheus.
 
 See my https://dasl.cc/2024/07/07/setting-custom-timestamps-for-prometheus-metrics/[blog post] on timestamped Prometheus metrics for more details.
+
+## Prometheus per-metric retention
+Prometheus has a single global retention setting and no built-in per-metric retention (https://github.com/dasl-/pitools/issues/13[issue]). We want to keep environmental metrics (temperature, humidity, electricity, etc.) for years but only need pi system metrics (`node_*`, etc.) for a few months. The workaround is a daily systemd timer that calls Prometheus's `delete_series` + `clean_tombstones` admin APIs to trim series outside the keep-list older than a few months.
+
+The keep-list is a single regex (`KEEP_REGEX`) in https://github.com/dasl-/pitools/blob/main/observability/prometheus_retention_timer[`prometheus_retention_timer`].
 
 ## Grafana configuration
 ### If starting with no pre-existing `grafana.db` file

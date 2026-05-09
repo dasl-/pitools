@@ -22,7 +22,7 @@ PROMETHEUS_VERSION="$VERSION_NUMBER.linux-armv7"
 if [[ $(getconf LONG_BIT)  == '64' ]] ; then
     PROMETHEUS_VERSION="$VERSION_NUMBER.linux-arm64"
 else
-    warn "\\nYou are installing prometheus on a 32-bit OS. This may result in memory allocation errors that will cause prometheus to crash! We recommend using a 64-bit OS."
+    die "\\nYou are installing prometheus on a 32-bit OS. This may result in memory allocation errors that will cause prometheus to crash! You must use a 64-bit OS."
 fi
 
 
@@ -126,7 +126,7 @@ Wants=network-online.target
 [Service]
 Environment=HOME=/root
 # Writing tsdb to USB external SSD improves performance vs SD card.
-ExecStart=$INSTALL_DIR/prometheus-$PROMETHEUS_VERSION/prometheus --config.file=$INSTALL_DIR/prometheus.yml --storage.tsdb.path=/ssd/prometheus-data --storage.tsdb.retention.time=5y --web.enable-admin-api
+ExecStart=$INSTALL_DIR/prometheus-$PROMETHEUS_VERSION/prometheus --config.file=$INSTALL_DIR/prometheus.yml --storage.tsdb.path=/ssd/prometheus-data --storage.tsdb.retention.time=100y --web.enable-admin-api
 Restart=on-failure
 StandardOutput=syslog
 StandardError=syslog
