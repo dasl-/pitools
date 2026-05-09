@@ -27,7 +27,7 @@ cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention.service >/dev/nul
 [Unit]
 Description=Trim prometheus series outside the keep-list older than retention window
 After=prometheus.service
-Requires=prometheus.service
+Requisite=prometheus.service
 
 [Service]
 Type=oneshot
