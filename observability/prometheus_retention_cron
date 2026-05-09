@@ -1,34 +1,28 @@
 #!/usr/bin/env bash
 #
-# Per-metric retention for our prometheus instance.
+# Per-metric retention for prometheus.
 #
-# Background: prometheus has a single global retention setting and no built-in
-# per-metric retention (https://github.com/prometheus/prometheus/issues/1381).
 # We keep environmental metrics (temperature, humidity, electricity, etc.) for
-# years but only need pi system metrics (node_*, etc.) for a couple months.
-# This script trims non-env series older than RETENTION_DAYS via the prometheus
-# admin delete_series + clean_tombstones APIs.
-#
-# Failure modes the safety check guards against:
-#   - ENV_REGEX accidentally rewritten in a way that no longer matches real
-#     env metrics. Without the guard, we'd wipe years of environmental data.
-# It does NOT guard against ENV_REGEX being too broad (i.e. not deleting enough);
-# that just means the cron does less work than intended, not data loss.
+# years but only need pi system metrics (node_*, etc.) for a few months.
+# This script trims series outside the keep-list older than RETENTION_DAYS via
+# the prometheus admin delete_series + clean_tombstones APIs.
 #
 # See: https://github.com/dasl-/pitools/issues/13
 
 set -euo pipefail -o errtrace
 
 PROM_URL="${PROM_URL:-http://localhost:9090}"
-ENV_REGEX="${ENV_REGEX:-^(ambient_|city_|electricity_).*}"
-RETENTION_DAYS="${RETENTION_DAYS:-60}"
+KEEP_REGEX="${KEEP_REGEX:-^(ambient_|city_|electricity_).*}"
+RETENTION_DAYS="${RETENTION_DAYS:-90}"
+
 # When true, log what would be deleted but do not call the destructive APIs.
 # Default to true so a fresh install is non-destructive until an operator opts in.
 DRY_RUN="${DRY_RUN:-true}"
-# Floor on env-metric series count. If fewer are found, abort without deleting.
-# We currently emit 11 distinct env metric names from sensors/*; 8 leaves headroom
-# for one or two sensors being temporarily offline at cron time.
-SAFETY_MIN_ENV_SERIES="${SAFETY_MIN_ENV_SERIES:-8}"
+
+# Floor on keep-list series count. If fewer are found, abort without deleting.
+# We currently emit 11 distinct metrics matching KEEP_REGEX from sensors/*; 8
+# leaves headroom for one or two sensors being temporarily offline at cron time.
+SAFETY_MIN_KEEP_SERIES="${SAFETY_MIN_KEEP_SERIES:-8}"
 
 main(){
     trap 'fail $? $LINENO' ERR
@@ -40,32 +34,34 @@ main(){
 
     info "Retention cron starting. cutoff=${cutoff_human} dry_run=${DRY_RUN}"
 
-    local env_series_count
-    env_series_count=$(countSeries "{__name__=~\"$ENV_REGEX\"}")
-    if (( env_series_count < SAFETY_MIN_ENV_SERIES )); then
-        die "Sanity check failed: only $env_series_count env series matched ENV_REGEX (expected >= $SAFETY_MIN_ENV_SERIES). Refusing to delete."
+    local keep_series_count
+    keep_series_count=$(countSeries "{__name__=~\"$KEEP_REGEX\"}")
+    if (( keep_series_count < SAFETY_MIN_KEEP_SERIES )); then
+        die "Sanity check failed: only $keep_series_count keep-list series matched KEEP_REGEX (expected >= $SAFETY_MIN_KEEP_SERIES). Refusing to delete."
     fi
-    info "Sanity check passed: $env_series_count env series matched."
+    info "Sanity check passed: $keep_series_count keep-list series matched."
 
-    local non_env_selector
-    non_env_selector="{__name__=~\".+\",__name__!~\"$ENV_REGEX\"}"
+    local trim_selector
+    trim_selector="{__name__=~\".+\",__name__!~\"$KEEP_REGEX\"}"
 
-    if [[ "$DRY_RUN" == "true" ]]; then
-        local non_env_series_count
-        non_env_series_count=$(countSeries "$non_env_selector")
-        info "DRY_RUN: would delete $non_env_series_count non-env series with end<=${cutoff_human}. Set DRY_RUN=false to actually delete."
+    if [[ "$DRY_RUN" != "false" ]]; then
+        info "DRY_RUN: would delete the following series with end<=${cutoff_human} (set DRY_RUN=false to actually delete):"
+        summarizeSeries "$trim_selector"
         return 0
     fi
 
+    info "About to delete (with end<=${cutoff_human}):"
+    summarizeSeries "$trim_selector"
+
     info "Calling delete_series..."
     curl -fsS -X POST "$PROM_URL/api/v1/admin/tsdb/delete_series" \
-        --data-urlencode "match[]=$non_env_selector" \
+        --data-urlencode "match[]=$trim_selector" \
         --data-urlencode "end=$cutoff_epoch" >/dev/null
 
     info "Calling clean_tombstones..."
     curl -fsS -X POST "$PROM_URL/api/v1/admin/tsdb/clean_tombstones" >/dev/null
 
-    info "Retention cron finished. Trimmed non-env series with end<=${cutoff_human}."
+    info "Retention cron finished. Trimmed non-keep-list series with end<=${cutoff_human}."
 }
 
 # Count series matching the given selector via the /api/v1/series endpoint.
@@ -74,6 +70,23 @@ countSeries(){
     curl -fsS --get "$PROM_URL/api/v1/series" \
         --data-urlencode "match[]=$selector" \
         | python3 -c 'import sys, json; print(len(json.load(sys.stdin)["data"]))'
+}
+
+# Log series count + distinct metric names matching a selector. Note this
+# reports what *would* be touched right now; the actual delete_series call uses
+# end=cutoff so it only tombstones samples old enough, but the matched series
+# (by labelset) are the same.
+summarizeSeries(){
+    local selector="$1"
+    curl -fsS --get "$PROM_URL/api/v1/series" \
+        --data-urlencode "match[]=$selector" \
+        | python3 -c "
+import sys, json
+data = json.load(sys.stdin)['data']
+names = sorted({d['__name__'] for d in data})
+print(f'  series matched: {len(data)} across {len(names)} distinct metric names')
+print('  metric names: ' + ', '.join(names))
+"
 }
 
 fail(){
@@ -85,16 +98,16 @@ fail(){
 }
 
 info(){
-    echo -e "\x1b[32m$*\x1b[0m"
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
 }
 
 warn(){
-    echo -e "\x1b[33m$*\x1b[0m"
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
 }
 
 die(){
     echo
-    echo -e "\x1b[31m$*\x1b[0m" >&2
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
     exit 1
 }
 

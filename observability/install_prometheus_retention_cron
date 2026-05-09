@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
 #
 # Install the systemd service+timer that runs the prometheus retention cron.
-#
-# The cron lives at <repo>/observability/prometheus_retention_cron and is
-# pointed at directly by the systemd unit (matching the install_pitoolsmon
-# pattern), so a `git pull` is enough to update the script.
-#
-# Defaults to DRY_RUN=true. After verifying dry-run output for a few days,
-# edit the Environment= line in the .service file and reload:
-#
-#     sudo sed -i 's/Environment=DRY_RUN=true/Environment=DRY_RUN=false/' \
-#         /etc/systemd/system/prometheus-retention-cron.service
-#     sudo systemctl daemon-reload
-#
 # See: https://github.com/dasl-/pitools/issues/13
 
 set -euo pipefail -o errtrace
@@ -30,7 +18,6 @@ main(){
     info "Timer status:    sudo systemctl status prometheus-retention-cron.timer"
     info "Trigger now:     sudo systemctl start prometheus-retention-cron.service"
     info "Tail logs:       sudo journalctl -u prometheus-retention-cron.service -f"
-    info "Currently DRY_RUN=true. Verify a few runs, then flip DRY_RUN=false in the .service file."
 }
 
 setupSystemd(){
@@ -38,7 +25,7 @@ setupSystemd(){
 
 cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention-cron.service >/dev/null
 [Unit]
-Description=Trim non-env prometheus series older than retention window
+Description=Trim prometheus series outside the keep-list older than retention window
 After=prometheus.service
 Requires=prometheus.service
 
@@ -48,11 +35,11 @@ Type=oneshot
 # plenty of headroom so systemd doesn't kill the run mid-rewrite.
 TimeoutStartSec=30min
 Environment=HOME=/root
-Environment=DRY_RUN=true
+Environment=DRY_RUN=false
 ExecStart=$BASE_DIR/observability/prometheus_retention_cron
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=PROM_RETENTION
+SyslogIdentifier=PROMETHEUS_RETENTION_CRON
 EOF
 
 cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention-cron.timer >/dev/null
@@ -60,8 +47,7 @@ cat <<-EOF | sudo tee /etc/systemd/system/prometheus-retention-cron.timer >/dev/
 Description=Daily prometheus retention trim
 
 [Timer]
-OnCalendar=*-*-* 03:00:00
-Persistent=true
+OnCalendar=*-*-* 09:00:00
 
 [Install]
 WantedBy=timers.target
@@ -85,16 +71,16 @@ fail(){
 }
 
 info(){
-    echo -e "\x1b[32m$*\x1b[0m"
+    echo -e "\x1b[32m$*\x1b[0m" # green stdout
 }
 
 warn(){
-    echo -e "\x1b[33m$*\x1b[0m"
+    echo -e "\x1b[33m$*\x1b[0m" # yellow stdout
 }
 
 die(){
     echo
-    echo -e "\x1b[31m$*\x1b[0m" >&2
+    echo -e "\x1b[31m$*\x1b[0m" >&2 # red stderr
     exit 1
 }
 
