@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import csv
 import time
 import requests
 import prometheus_client
@@ -29,32 +30,33 @@ def setup_prometheus():
 
 def get_data():
     # NYC realtime air quality:
-    # https://a816-dohbesp.nyc.gov/IndicatorPublic/key-topics/airquality/realtime/
-    # We show the average readings from 11 rooftop monitors from the NY State Department of Environmental Conservation (DEC),
-    # which collects data for the Federal Clean Air Act.
-    #
-    # If this breaks, consider downloading the data from this alternate URL which is by year/month:
     # https://a816-dohbesp.nyc.gov/IndicatorPublic/data-features/realtime-air-quality/
+    # We show the average readings from the rooftop monitors run by the NY State Department of
+    # Environmental Conservation (DEC), which collect data for the Federal Clean Air Act. That is
+    # the "DEC_Avg" row in the data.
     #
-    # Or consider using EPA data:
-    # https://gispub.epa.gov/airnow/?contours=none&monitors=pm25&xmin=-8267811.164466043&xmax=-8203604.060706581&ymin=4956162.7602978945&ymax=4973781.495317604
-    #
-    # For example: https://an_gov_data.s3.amazonaws.com/Sites/360470118.json
-    url = 'https://azdohv2staticweb.blob.core.windows.net/$web/nyccas_realtime_DEC.csv'
+    # The data is published hourly (covering roughly the last 5 days) to the nychealth/nyccas-data
+    # GitHub repo, which is the same feed the portal page above renders. The old Azure blob source
+    # (azdohv2staticweb.blob.core.windows.net) was decommissioned. If this breaks, that repo also
+    # archives data by year/month (month not zero-padded) under hist/, e.g.
+    # https://raw.githubusercontent.com/nychealth/nyccas-data/refs/heads/main/hist/csv/2026/7.csv
+    # or consider EPA data: https://gispub.epa.gov/airnow/
+    url = 'https://raw.githubusercontent.com/nychealth/nyccas-data/refs/heads/main/portal/view.csv'
     response = requests.get(url, timeout=5)
     if response.status_code != 200:
         print(f'Got unexpected status code {response.status_code} from {url}', flush = True)
     response.raise_for_status()
-    most_recent_pm25_reading = None
-    for line in response.text.splitlines():
-        if line.startswith('DEC_Avg'):
-            parts = line.split(',')
-            most_recent_pm25_reading = parts[-1]
-            time_of_most_recent_reading = parts[-3]
-    if most_recent_pm25_reading is None:
-        raise Exception('Unable to read data from response')
 
-    dt = datetime.datetime.strptime(time_of_most_recent_reading, '%Y-%m-%dT%H:%M:%S')
+    # Columns: SiteName,Operator,starttime,timeofday,Value. Rows are hourly per site; keep the most
+    # recent DEC_Avg reading. starttime sorts lexically (e.g. "2026-07-15 20:00:00.000").
+    most_recent = None
+    for row in csv.DictReader(response.text.splitlines()):
+        if row['SiteName'] == 'DEC_Avg' and (most_recent is None or row['starttime'] > most_recent['starttime']):
+            most_recent = row
+    if most_recent is None:
+        raise Exception('Unable to read DEC_Avg data from response')
+
+    dt = datetime.datetime.strptime(most_recent['starttime'], '%Y-%m-%d %H:%M:%S.%f')
     ny_tz = pytz.timezone('America/New_York')
     localized_dt = ny_tz.localize(dt)
     unix_time_ms = int(round(localized_dt.timestamp()))
@@ -62,7 +64,7 @@ def get_data():
         raise Exception('Unable to parse timestamp from response')
 
     return {
-        'pm25 city': [float(most_recent_pm25_reading), unix_time_ms]
+        'pm25 city': [float(most_recent['Value']), unix_time_ms]
     }
 
 # NYC air quality data is delayed 2-4 hours. The delayed data has a timestamp associated with it.
